@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Loader2, ShoppingBag, UtensilsCrossed, ShoppingCart, Pill, Smartphone, Package,
-  Plus, Minus, MapPin, Search, X, Store, ArrowRight,
+  Plus, Minus, MapPin, Search, X, Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ interface Product {
   price: number;
   category: string;
   shopName: string;
+  image: string | null;
 }
 
 interface CartItem {
@@ -22,22 +24,21 @@ interface CartItem {
   quantity: number;
 }
 
-const categoryConfig: Record<string, { label: string; icon: any; color: string }> = {
-  RESTAURANT: { label: "Restaurants", icon: UtensilsCrossed, color: "text-orange-400" },
-  GROCERY: { label: "Epicerie", icon: ShoppingCart, color: "text-green-400" },
-  PHARMACY: { label: "Pharmacie", icon: Pill, color: "text-blue-400" },
-  ELECTRONICS: { label: "Electronique", icon: Smartphone, color: "text-purple-400" },
-  OTHER: { label: "Autre", icon: Package, color: "text-gray-400" },
+const categoryConfig: Record<string, { label: string; icon: any; color: string; bg: string }> = {
+  RESTAURANT: { label: "Restaurants", icon: UtensilsCrossed, color: "text-orange-400", bg: "bg-orange-600/20" },
+  GROCERY: { label: "Epicerie", icon: ShoppingCart, color: "text-green-400", bg: "bg-green-600/20" },
+  PHARMACY: { label: "Pharmacie", icon: Pill, color: "text-blue-400", bg: "bg-blue-600/20" },
+  ELECTRONICS: { label: "Electronique", icon: Smartphone, color: "text-purple-400", bg: "bg-purple-600/20" },
+  OTHER: { label: "Autre", icon: Package, color: "text-gray-400", bg: "bg-gray-600/20" },
 };
 
-export default function LivraisonPage() {
+export default function CommanderPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [showCart, setShowCart] = useState(false);
   const [showOrder, setShowOrder] = useState(false);
   const [address, setAddress] = useState("");
   const [addressLat, setAddressLat] = useState("");
@@ -81,12 +82,6 @@ export default function LivraisonPage() {
     return true;
   });
 
-  const grouped = filtered.reduce((acc, p) => {
-    if (!acc[p.shopName]) acc[p.shopName] = [];
-    acc[p.shopName].push(p);
-    return acc;
-  }, {} as Record<string, Product[]>);
-
   async function placeOrder() {
     if (!address || !addressLat || !addressLng) return;
     setOrdering(true);
@@ -106,7 +101,6 @@ export default function LivraisonPage() {
         const order = await res.json();
         setCart([]);
         setShowOrder(false);
-        setShowCart(false);
         router.push(`/livraison/order/${order.id}`);
       }
     } finally {
@@ -128,22 +122,22 @@ export default function LivraisonPage() {
   }
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-24">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white">Livraison</h1>
-        <p className="text-gray-400 text-sm mt-1">Commandez et suivez votre livraison en direct</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-white">Commander</h1>
+        <p className="text-gray-400 text-sm mt-1">Choisissez vos articles et passez commande</p>
       </div>
 
       {/* Recherche */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
         <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher un plat, un produit, un restaurant..."
+          placeholder="Rechercher un plat, produit, restaurant..."
           className="w-full pl-10 pr-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl text-white text-sm focus:outline-none focus:border-blue-500" />
       </div>
 
       {/* Categories */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <button onClick={() => setActiveCategory("all")}
           className={cn("px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-colors", activeCategory === "all" ? "bg-blue-600 text-white" : "bg-gray-900 text-gray-400 hover:text-white")}>
           Tout
@@ -160,64 +154,71 @@ export default function LivraisonPage() {
         })}
       </div>
 
-      {/* Mes commandes link */}
-      <button onClick={() => router.push("/livraison/order")}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl hover:border-gray-700 transition-colors">
-        <span className="text-sm text-gray-300 flex items-center gap-2"><ShoppingBag className="w-4 h-4 text-blue-400" /> Mes commandes</span>
-        <ArrowRight className="w-4 h-4 text-gray-500" />
-      </button>
-
-      {/* Produits par boutique */}
-      {Object.entries(grouped).map(([shop, items]) => (
-        <div key={shop} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
-            <Store className="w-4 h-4 text-blue-400" />
-            <span className="text-sm font-semibold text-white">{shop}</span>
-          </div>
-          <div className="divide-y divide-gray-800">
-            {items.map((p) => {
-              const count = getCartCount(p.id);
-              const cat = categoryConfig[p.category];
-              return (
-                <div key={p.id} className="px-4 py-3 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white font-medium">{p.name}</p>
-                    {p.description && <p className="text-xs text-gray-500 truncate">{p.description}</p>}
-                    <p className="text-sm font-semibold text-blue-400 mt-0.5">{p.price.toLocaleString()} FCFA</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {count > 0 && (
-                      <>
-                        <button onClick={() => removeFromCart(p.id)} className="w-7 h-7 flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded-full text-white">
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-sm text-white font-semibold w-5 text-center">{count}</span>
-                      </>
-                    )}
-                    <button onClick={() => addToCart(p)} className="w-7 h-7 flex items-center justify-center bg-blue-600 hover:bg-blue-700 rounded-full text-white">
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-
-      {filtered.length === 0 && (
+      {/* Grille de produits */}
+      {filtered.length === 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
           <ShoppingBag className="w-12 h-12 text-gray-700 mx-auto mb-3" />
           <p className="text-gray-400">Aucun produit trouve</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {filtered.map((p) => {
+            const count = getCartCount(p.id);
+            const cat = categoryConfig[p.category] || categoryConfig.OTHER;
+            const CatIcon = cat.icon;
+            return (
+              <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden group hover:border-gray-700 transition-colors">
+                {/* Image */}
+                <div className={cn("relative h-32 sm:h-36 flex items-center justify-center", cat.bg)}>
+                  {p.image ? (
+                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <CatIcon className={cn("w-12 h-12 opacity-40", cat.color)} />
+                  )}
+                  {/* Badge boutique */}
+                  <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 bg-black/60 rounded-md">
+                    <Store className="w-3 h-3 text-gray-300" />
+                    <span className="text-[9px] text-gray-300 font-medium truncate max-w-[80px]">{p.shopName}</span>
+                  </div>
+                </div>
+
+                {/* Contenu */}
+                <div className="p-3">
+                  <h3 className="text-sm font-semibold text-white truncate">{p.name}</h3>
+                  {p.description && (
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>
+                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-sm font-bold text-blue-400">{p.price.toLocaleString()} <span className="text-[10px] font-normal">FCFA</span></p>
+                    <div className="flex items-center gap-1.5">
+                      {count > 0 && (
+                        <>
+                          <button onClick={() => removeFromCart(p.id)}
+                            className="w-6 h-6 flex items-center justify-center bg-gray-800 hover:bg-gray-700 rounded-full text-white">
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="text-xs text-white font-bold w-4 text-center">{count}</span>
+                        </>
+                      )}
+                      <button onClick={() => addToCart(p)}
+                        className="w-6 h-6 flex items-center justify-center bg-blue-600 hover:bg-blue-700 rounded-full text-white">
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Barre panier fixe */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-gray-800 p-4 lg:left-64">
+        <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 lg:bottom-0 lg:left-64 lg:pb-4">
           {!showOrder ? (
             <button onClick={() => setShowOrder(true)}
-              className="w-full flex items-center justify-between py-3 px-4 bg-blue-600 hover:bg-blue-700 rounded-xl text-white transition-colors">
+              className="w-full flex items-center justify-between py-3.5 px-5 bg-blue-600 hover:bg-blue-700 rounded-2xl text-white transition-colors shadow-lg shadow-blue-600/20">
               <span className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5" />
                 <span className="text-sm font-semibold">{totalItems} article(s)</span>
@@ -225,12 +226,11 @@ export default function LivraisonPage() {
               <span className="text-sm font-bold">{total.toLocaleString()} FCFA</span>
             </button>
           ) : (
-            <div className="space-y-3">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3 shadow-xl">
               <div className="flex items-center justify-between">
                 <p className="text-white font-semibold text-sm">Confirmer la commande</p>
                 <button onClick={() => setShowOrder(false)}><X className="w-5 h-5 text-gray-400" /></button>
               </div>
-              {/* Resume panier */}
               <div className="max-h-32 overflow-y-auto space-y-1">
                 {cart.map((i) => (
                   <div key={i.product.id} className="flex justify-between text-xs text-gray-400">
@@ -242,7 +242,6 @@ export default function LivraisonPage() {
               <div className="flex justify-between text-sm font-bold text-white border-t border-gray-800 pt-2">
                 <span>Total</span><span>{total.toLocaleString()} FCFA</span>
               </div>
-              {/* Adresse livraison */}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Adresse de livraison *</label>
                 <div className="flex gap-2">
@@ -264,7 +263,7 @@ export default function LivraisonPage() {
               <button onClick={placeOrder} disabled={ordering || !address || !addressLat || !addressLng}
                 className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
                 {ordering ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
-                Commander • {total.toLocaleString()} FCFA
+                Commander - {total.toLocaleString()} FCFA
               </button>
             </div>
           )}

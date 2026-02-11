@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Map,
   ShoppingBag,
-  Truck,
+  ClipboardList,
   Settings,
   Bell,
   Cpu,
@@ -20,13 +20,13 @@ const mobileItems: Record<string, { label: string; href: string; icon: any }[]> 
   CLIENT: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
     { label: "Carte", href: "/map", icon: Map },
-    { label: "Livraison", href: "/livraison", icon: ShoppingBag },
-    { label: "Parametres", href: "/settings", icon: Settings },
+    { label: "Commander", href: "/livraison", icon: ShoppingBag },
+    { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
   ],
   DRIVER: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
     { label: "Carte", href: "/map", icon: Map },
-    { label: "Livraisons", href: "/livraison/driver", icon: Truck },
+    { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
     { label: "Parametres", href: "/settings", icon: Settings },
   ],
   DEFAULT: [
@@ -41,8 +41,8 @@ const mobileItems: Record<string, { label: string; href: string; icon: any }[]> 
 const moreItems = [
   { label: "Trajets", href: "/trips", icon: Map },
   { label: "Geofences", href: "/geofences", icon: Map },
-  { label: "Livraison", href: "/livraison", icon: ShoppingBag },
-  { label: "Espace Livreur", href: "/livraison/driver", icon: Truck },
+  { label: "Commander", href: "/livraison", icon: ShoppingBag },
+  { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
   { label: "Parametres", href: "/settings", icon: Settings },
 ];
 
@@ -56,7 +56,6 @@ export function MobileNav() {
 
   return (
     <>
-      {/* Menu "Plus" overlay */}
       {showMore && (
         <>
           <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setShowMore(false)} />
@@ -83,7 +82,6 @@ export function MobileNav() {
         </>
       )}
 
-      {/* Bottom nav bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-gray-900 border-t border-gray-800 lg:hidden safe-bottom">
         <div className="flex items-center justify-around h-16 px-1">
           {items.map((item) => {
@@ -91,7 +89,9 @@ export function MobileNav() {
             const isMore = item.href === "#more";
             const isActive = isMore
               ? showMore
-              : pathname === item.href || pathname.startsWith(item.href + "/");
+              : item.href === "/livraison"
+                ? pathname === "/livraison"
+                : pathname === item.href || pathname.startsWith(item.href + "/");
 
             if (isMore) {
               return (

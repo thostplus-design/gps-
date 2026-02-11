@@ -14,8 +14,8 @@ import {
   Settings,
   MapPin,
   X,
-  Truck,
   ShoppingBag,
+  ClipboardList,
 } from "lucide-react";
 
 const navItems = [
@@ -25,8 +25,8 @@ const navItems = [
   { label: "Trajets", href: "/trips", icon: Route, roles: ["ADMIN", "MANAGER", "VIEWER"] },
   { label: "Geofences", href: "/geofences", icon: Shield, roles: ["ADMIN", "MANAGER", "VIEWER"] },
   { label: "Alertes", href: "/alerts", icon: Bell, roles: ["ADMIN", "MANAGER", "VIEWER"] },
-  { label: "Livraison", href: "/livraison", icon: ShoppingBag, roles: ["ADMIN", "MANAGER", "VIEWER", "CLIENT"] },
-  { label: "Espace Livreur", href: "/livraison/driver", icon: Truck, roles: ["ADMIN", "DRIVER"] },
+  { label: "Commander", href: "/livraison", icon: ShoppingBag, roles: ["ADMIN", "CLIENT"] },
+  { label: "Commandes", href: "/livraison/order", icon: ClipboardList, roles: ["ADMIN", "CLIENT", "DRIVER"] },
   { label: "Parametres", href: "/settings", icon: Settings, roles: null },
 ];
 
@@ -76,7 +76,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {filteredItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+            const isActive = item.href === "/livraison"
+              ? pathname === "/livraison"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
