@@ -10,24 +10,27 @@ import {
   ClipboardList,
   Bell,
   Cpu,
-  MoreHorizontal,
   Map,
+  MoreHorizontal,
   Settings,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const mobileItems: Record<string, { label: string; href: string; icon: any }[]> = {
   CLIENT: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Carte", href: "/map", icon: Map },
     { label: "Commander", href: "/livraison", icon: ShoppingBag },
     { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
   ],
   DRIVER: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Carte", href: "/map", icon: Map },
     { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
   ],
   DEFAULT: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Carte", href: "/map", icon: Map },
     { label: "Appareils", href: "/devices", icon: Cpu },
     { label: "Alertes", href: "/alerts", icon: Bell },
     { label: "Plus", href: "#more", icon: MoreHorizontal },
@@ -35,7 +38,6 @@ const mobileItems: Record<string, { label: string; href: string; icon: any }[]> 
 };
 
 const moreItems = [
-  { label: "Carte", href: "/map", icon: Map },
   { label: "Trajets", href: "/trips", icon: Map },
   { label: "Geofences", href: "/geofences", icon: Map },
   { label: "Commander", href: "/livraison", icon: ShoppingBag },
@@ -48,6 +50,24 @@ export function MobileNav() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role || "VIEWER";
   const [showMore, setShowMore] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  // Cacher la nav au scroll vers le bas, montrer au scroll vers le haut
+  useEffect(() => {
+    function handleScroll() {
+      const currentY = window.scrollY;
+      if (currentY > lastScrollY.current && currentY > 60) {
+        setVisible(false);
+        setShowMore(false);
+      } else {
+        setVisible(true);
+      }
+      lastScrollY.current = currentY;
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const items = mobileItems[role] || mobileItems.DEFAULT;
 
@@ -79,7 +99,10 @@ export function MobileNav() {
         </>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-gray-900 border-t border-gray-800 lg:hidden safe-bottom">
+      <nav className={cn(
+        "fixed bottom-0 left-0 right-0 z-30 bg-gray-900 border-t border-gray-800 lg:hidden safe-bottom transition-transform duration-300",
+        visible ? "translate-y-0" : "translate-y-full"
+      )}>
         <div className="flex items-center justify-around h-16 px-1">
           {items.map((item) => {
             const Icon = item.icon;

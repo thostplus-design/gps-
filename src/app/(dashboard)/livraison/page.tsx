@@ -221,7 +221,7 @@ export default function CommanderPage() {
               className="w-full flex items-center justify-between py-3.5 px-5 bg-blue-600 hover:bg-blue-700 rounded-2xl text-white transition-colors shadow-lg shadow-blue-600/20">
               <span className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5" />
-                <span className="text-sm font-semibold">{totalItems} article(s)</span>
+                <span className="text-sm font-semibold">Commander {totalItems} Article{totalItems > 1 ? "s" : ""}</span>
               </span>
               <span className="text-sm font-bold">{total.toLocaleString()} FCFA</span>
             </button>
