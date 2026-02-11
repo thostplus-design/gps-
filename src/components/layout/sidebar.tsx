@@ -7,9 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Map,
-  Cpu,
-  Route,
-  Shield,
   Bell,
   Settings,
   MapPin,
@@ -26,16 +23,13 @@ const navItems = [
   { label: "Carte", href: "/map", icon: Map, roles: null },
   { label: "Commander", href: "/livraison", icon: ShoppingBag, roles: ["ADMIN", "CLIENT"] },
   { label: "Commandes", href: "/livraison/order", icon: ClipboardList, roles: ["ADMIN", "CLIENT", "DRIVER"] },
-  { label: "Trajets", href: "/trips", icon: Route, roles: ["ADMIN", "DRIVER"] },
-  { label: "Appareils", href: "/devices", icon: Cpu, roles: ["ADMIN", "MANAGER", "VIEWER"] },
   { label: "Alertes", href: "/alerts", icon: Bell, roles: ["ADMIN", "MANAGER", "VIEWER"] },
 ];
 
 const adminItems = [
+  { label: "Produits", href: "/products", icon: Package },
   { label: "Utilisateurs", href: "/users", icon: Users },
   { label: "Livreurs", href: "/drivers", icon: Truck },
-  { label: "Produits", href: "/products", icon: Package },
-  { label: "Geofences", href: "/geofences", icon: Shield },
 ];
 
 interface SidebarProps {
@@ -94,7 +88,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             );
           })}
 
-          {/* Section Admin */}
           {isAdmin && (
             <>
               <div className="pt-4 pb-2 px-3">
@@ -116,7 +109,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </>
           )}
 
-          {/* Parametres */}
           <div className="pt-4">
             <Link href="/settings" onClick={onClose}
               className={cn(
