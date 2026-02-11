@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import GPSMap from "@/components/map/map-loader";
-import { Loader2, Car, Users, Package, MapPin } from "lucide-react";
+import { usePositions } from "@/hooks/use-positions";
+import { Loader2, Car, Users, Package, MapPin, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const typeIcons: Record<string, any> = { VEHICLE: Car, PERSON: Users, ASSET: Package };
@@ -14,19 +15,24 @@ const statusColors: Record<string, string> = {
 };
 
 export default function MapPage() {
-  const [devices, setDevices] = useState<any[]>([]);
+  const [initialDevices, setInitialDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
+
+  const devices = usePositions(initialDevices);
 
   useEffect(() => {
     fetch("/api/positions/latest")
       .then((r) => r.json())
-      .then((data) => {
-        setDevices(Array.isArray(data) ? data : []);
-      })
+      .then((data) => setInitialDevices(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
   }, []);
+
+  function refresh() {
+    fetch("/api/positions/latest")
+      .then((r) => r.json())
+      .then((data) => setInitialDevices(Array.isArray(data) ? data : []));
+  }
 
   if (loading) {
     return (
@@ -40,15 +46,20 @@ export default function MapPage() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Carte</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Carte temps reel</h1>
           <p className="text-gray-400 text-sm mt-1">{devices.length} appareil(s) localise(s)</p>
         </div>
-        <button
-          onClick={() => setShowPanel(!showPanel)}
-          className="sm:hidden px-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm"
-        >
-          {showPanel ? "Masquer la liste" : "Voir la liste"}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={refresh} className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg">
+            <RefreshCw className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setShowPanel(!showPanel)}
+            className="sm:hidden px-4 py-2 bg-gray-900 border border-gray-800 rounded-lg text-white text-sm"
+          >
+            {showPanel ? "Masquer" : "Liste"}
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-4 h-[calc(100vh-12rem)]">
@@ -57,8 +68,9 @@ export default function MapPage() {
           "hidden sm:block",
           showPanel && "!block fixed inset-x-4 bottom-4 top-40 z-20 w-auto sm:relative sm:inset-auto sm:w-72"
         )}>
-          <div className="p-3 border-b border-gray-800 sticky top-0 bg-gray-900">
+          <div className="p-3 border-b border-gray-800 sticky top-0 bg-gray-900 flex items-center justify-between">
             <p className="text-sm font-medium text-gray-300">{devices.length} appareil(s)</p>
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" title="Temps reel actif" />
           </div>
           {devices.length === 0 ? (
             <div className="p-4 text-center">
@@ -70,24 +82,20 @@ export default function MapPage() {
               {devices.map((d) => {
                 const Icon = typeIcons[d.type] || MapPin;
                 return (
-                  <button
-                    key={d.id}
-                    onClick={() => { setSelectedId(d.id); setShowPanel(false); }}
-                    className={cn(
-                      "w-full p-3 text-left hover:bg-gray-800/50 transition-colors",
-                      selectedId === d.id && "bg-blue-600/10"
-                    )}
-                  >
+                  <div key={d.id} className="p-3 hover:bg-gray-800/50 transition-colors">
                     <div className="flex items-center gap-2">
                       <Icon className="w-4 h-4 text-blue-400 shrink-0" />
                       <span className="text-white text-sm font-medium truncate">{d.name}</span>
                       <span className={cn("w-2 h-2 rounded-full shrink-0 ml-auto", statusColors[d.status])} />
                     </div>
-                    <p className="text-gray-500 text-xs mt-1 truncate">
-                      {d.position.speed != null ? `${d.position.speed} km/h` : ""}{" "}
-                      {d.batteryLevel != null ? `| ${d.batteryLevel}%` : ""}
-                    </p>
-                  </button>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                      {d.position?.speed != null && <span>{d.position.speed} km/h</span>}
+                      {d.batteryLevel != null && <span>{d.batteryLevel}%</span>}
+                      {d.position?.timestamp && (
+                        <span>{new Date(d.position.timestamp).toLocaleTimeString("fr-FR")}</span>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
