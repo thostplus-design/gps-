@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { positionSchema } from "@/lib/validators";
+import { isPointInGeofence } from "@/lib/geofence-utils";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -77,6 +78,55 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+  }
+
+  // === DETECTION GEOFENCE ===
+  try {
+    const geofences = await prisma.geofence.findMany({ where: { isActive: true } });
+
+    // Recuperer la position precedente pour detecter entree/sortie
+    const prevPositions = await prisma.position.findMany({
+      where: { deviceId: device.id, id: { not: position.id } },
+      orderBy: { timestamp: "desc" },
+      take: 1,
+    });
+
+    const prevPos = prevPositions[0];
+
+    for (const geofence of geofences) {
+      const isInside = isPointInGeofence(latitude, longitude, geofence);
+      const wasInside = prevPos ? isPointInGeofence(prevPos.latitude, prevPos.longitude, geofence) : false;
+
+      if (isInside && !wasInside) {
+        // Entree dans la geofence
+        await prisma.alert.create({
+          data: {
+            type: "GEOFENCE_ENTER",
+            severity: "WARNING",
+            title: `${device.name} entre dans ${geofence.name}`,
+            message: `L'appareil ${device.name} est entre dans la zone ${geofence.name} a ${new Date().toLocaleTimeString("fr-FR")}`,
+            deviceId: device.id,
+            geofenceId: geofence.id,
+            userId: device.userId,
+          },
+        });
+      } else if (!isInside && wasInside) {
+        // Sortie de la geofence
+        await prisma.alert.create({
+          data: {
+            type: "GEOFENCE_EXIT",
+            severity: "WARNING",
+            title: `${device.name} sort de ${geofence.name}`,
+            message: `L'appareil ${device.name} a quitte la zone ${geofence.name} a ${new Date().toLocaleTimeString("fr-FR")}`,
+            deviceId: device.id,
+            geofenceId: geofence.id,
+            userId: device.userId,
+          },
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Erreur detection geofence:", e);
   }
 
   // Emettre via Socket.IO
