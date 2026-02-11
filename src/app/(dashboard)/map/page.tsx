@@ -241,14 +241,6 @@ export default function MapPage() {
         />
       </div>
 
-      {/* Bouton hamburger flottant sur mobile */}
-      <button
-        onClick={toggle}
-        className="absolute top-3 left-3 z-[1001] bg-white p-2.5 rounded-full shadow-lg hover:bg-gray-50 lg:hidden"
-        title="Menu"
-      >
-        <Menu className="w-5 h-5 text-gray-700" />
-      </button>
 
       {/* Banner mode placement position */}
       {settingPos && (

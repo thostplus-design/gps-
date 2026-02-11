@@ -6,32 +6,28 @@ import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  Map,
   ShoppingBag,
   ClipboardList,
-  Settings,
   Bell,
   Cpu,
   MoreHorizontal,
+  Map,
+  Settings,
 } from "lucide-react";
 import { useState } from "react";
 
 const mobileItems: Record<string, { label: string; href: string; icon: any }[]> = {
   CLIENT: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Carte", href: "/map", icon: Map },
     { label: "Commander", href: "/livraison", icon: ShoppingBag },
     { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
   ],
   DRIVER: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Carte", href: "/map", icon: Map },
     { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
-    { label: "Parametres", href: "/settings", icon: Settings },
   ],
   DEFAULT: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Carte", href: "/map", icon: Map },
     { label: "Appareils", href: "/devices", icon: Cpu },
     { label: "Alertes", href: "/alerts", icon: Bell },
     { label: "Plus", href: "#more", icon: MoreHorizontal },
@@ -39,6 +35,7 @@ const mobileItems: Record<string, { label: string; href: string; icon: any }[]> 
 };
 
 const moreItems = [
+  { label: "Carte", href: "/map", icon: Map },
   { label: "Trajets", href: "/trips", icon: Map },
   { label: "Geofences", href: "/geofences", icon: Map },
   { label: "Commander", href: "/livraison", icon: ShoppingBag },
