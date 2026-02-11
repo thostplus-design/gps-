@@ -3,10 +3,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { usePositions } from "@/hooks/use-positions";
+import { useSidebar } from "@/lib/sidebar-context";
 import {
   Loader2, Car, Users, Package, MapPin, RefreshCw, Send, Crosshair,
   Eye, Search, X, Locate, Layers, Navigation,
-  Clock, Ruler, Gauge, Flag, ArrowUp, PersonStanding, MousePointer,
+  Clock, Ruler, Gauge, Flag, ArrowUp, PersonStanding, MousePointer, Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ interface SearchResult { display_name: string; lat: string; lon: string; }
 interface RouteStep { instruction: string; distance: number; time: number; }
 
 export default function MapPage() {
+  const { toggle } = useSidebar();
   const [initialDevices, setInitialDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [geofences, setGeofences] = useState<any[]>([]);
@@ -151,7 +153,6 @@ export default function MapPage() {
 
   function handleMapClick(lat: number, lng: number) {
     if (isNavigating) return;
-    // Mode placement position manuelle
     if (settingPos) {
       setMyPos([lat, lng]);
       setAccuracy(0);
@@ -240,6 +241,15 @@ export default function MapPage() {
         />
       </div>
 
+      {/* Bouton hamburger flottant sur mobile */}
+      <button
+        onClick={toggle}
+        className="absolute top-3 left-3 z-[1001] bg-white p-2.5 rounded-full shadow-lg hover:bg-gray-50 lg:hidden"
+        title="Menu"
+      >
+        <Menu className="w-5 h-5 text-gray-700" />
+      </button>
+
       {/* Banner mode placement position */}
       {settingPos && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[1000] bg-blue-600 text-white px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-sm">
@@ -252,7 +262,7 @@ export default function MapPage() {
       )}
 
       {/* Barre de recherche */}
-      <div className="absolute top-3 left-3 right-14 sm:left-4 sm:right-auto sm:w-96 z-[1000]">
+      <div className="absolute top-3 left-16 right-14 sm:left-16 sm:right-auto sm:w-96 z-[1000] lg:left-4">
         <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3">
             {isNavigating ? (
@@ -270,7 +280,7 @@ export default function MapPage() {
               <>
                 <Search className="w-5 h-5 text-gray-400 shrink-0" />
                 <input type="text" value={searchQuery} onChange={(e) => handleSearchInput(e.target.value)}
-                  placeholder="Rechercher un lieu ou une adresse..."
+                  placeholder="Rechercher un lieu..."
                   className="flex-1 text-sm text-gray-900 placeholder-gray-400 outline-none bg-transparent" />
                 {searchQuery && (
                   <button onClick={() => { setSearchQuery(""); setSearchResults([]); }} className="p-1"><X className="w-4 h-4 text-gray-400" /></button>

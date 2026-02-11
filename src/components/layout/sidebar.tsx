@@ -14,6 +14,8 @@ import {
   Settings,
   MapPin,
   X,
+  Truck,
+  ShoppingBag,
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +26,8 @@ const navItems = [
   { label: "Geofences", href: "/geofences", icon: Shield },
   { label: "Alertes", href: "/alerts", icon: Bell },
   { label: "Navigation", href: "/navigate", icon: Navigation },
+  { label: "Livraison", href: "/livraison", icon: ShoppingBag },
+  { label: "Espace Livreur", href: "/livraison/driver", icon: Truck },
   { label: "Parametres", href: "/settings", icon: Settings },
 ];
 

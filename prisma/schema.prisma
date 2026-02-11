@@ -23,6 +23,9 @@ model User {
   alerts    Alert[]
   trips     Trip[]
 
+  clientOrders     Order[]    @relation("ClientOrders")
+  driverDeliveries Delivery[] @relation("DriverDeliveries")
+
   @@map("users")
 }
 
@@ -30,6 +33,8 @@ enum UserRole {
   ADMIN
   MANAGER
   VIEWER
+  CLIENT
+  DRIVER
 }
 
 // ========== APPAREILS DE TRACKING ==========
@@ -256,4 +261,120 @@ enum AlertSeverity {
   INFO
   WARNING
   CRITICAL
+}
+
+// ========== LIVRAISON ==========
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Float
+  category    ProductCategory
+  shopName    String
+  image       String?
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+enum ProductCategory {
+  RESTAURANT
+  GROCERY
+  PHARMACY
+  ELECTRONICS
+  OTHER
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  status          OrderStatus @default(PENDING)
+  totalAmount     Float
+  deliveryAddress String
+  deliveryLat     Float
+  deliveryLng     Float
+  note            String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  clientId String
+  client   User   @relation("ClientOrders", fields: [clientId], references: [id], onDelete: Cascade)
+
+  items    OrderItem[]
+  delivery Delivery?
+
+  @@index([clientId, status])
+  @@index([status])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  PICKED_UP
+  DELIVERING
+  DELIVERED
+  CANCELLED
+}
+
+model OrderItem {
+  id       String @id @default(cuid())
+  quantity Int
+  price    Float
+
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Delivery {
+  id               String         @id @default(cuid())
+  status           DeliveryStatus @default(ASSIGNED)
+  startTime        DateTime       @default(now())
+  endTime          DateTime?
+  estimatedMinutes Int?
+  currentLat       Float?
+  currentLng       Float?
+
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  driverId String
+  driver   User   @relation("DriverDeliveries", fields: [driverId], references: [id])
+
+  positions DeliveryPosition[]
+
+  @@index([driverId, status])
+  @@map("deliveries")
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  PICKING_UP
+  DELIVERING
+  DELIVERED
+  CANCELLED
+}
+
+model DeliveryPosition {
+  id        String   @id @default(cuid())
+  latitude  Float
+  longitude Float
+  speed     Float?
+  timestamp DateTime @default(now())
+
+  deliveryId String
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId, timestamp])
+  @@map("delivery_positions")
 }
