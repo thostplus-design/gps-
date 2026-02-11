@@ -24,10 +24,21 @@ export async function POST(request: NextRequest) {
 
   const io = (global as any).io;
   if (io) {
+    const driverName = (session.user as any).name;
+    // Notifier le client qui suit cette commande
     io.to(`order:${orderId}`).emit("delivery:accepted", {
       deliveryId: delivery.id,
-      driverName: (session.user as any).name,
+      driverName,
     });
+    // Notifier la liste de commandes du client
+    io.to(`client:${order.clientId}`).emit("delivery:accepted", {
+      orderId,
+      deliveryId: delivery.id,
+      driverName,
+      status: "ACCEPTED",
+    });
+    // Retirer la commande de la liste des livreurs
+    io.to("drivers").emit("order:taken", { orderId });
   }
 
   return NextResponse.json(delivery, { status: 201 });

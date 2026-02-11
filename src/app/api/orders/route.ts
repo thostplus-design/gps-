@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       delivery: {
         include: {
           driver: { select: { id: true, name: true } },
-          positions: { orderBy: { timestamp: "desc" }, take: 1 },
+          positions: { orderBy: { timestamp: "desc" }, take: 20 },
         },
       },
     },
@@ -68,8 +68,23 @@ export async function POST(request: NextRequest) {
       note,
       items: { create: orderItems },
     },
-    include: { items: { include: { product: true } } },
+    include: {
+      items: { include: { product: true } },
+      client: { select: { id: true, name: true } },
+    },
   });
+
+  // Notifier les livreurs en temps reel
+  const io = (global as any).io;
+  if (io) {
+    io.to("drivers").emit("order:new", {
+      id: order.id,
+      clientName: order.client?.name,
+      deliveryAddress: order.deliveryAddress,
+      totalAmount: order.totalAmount,
+      items: order.items,
+    });
+  }
 
   return NextResponse.json(order, { status: 201 });
 }

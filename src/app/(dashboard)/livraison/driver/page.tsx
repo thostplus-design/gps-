@@ -3,8 +3,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import {
-  Loader2, CheckCircle, Truck, MapPin, Clock, User, Package, Navigation, Ruler, Gauge,
+  Loader2, CheckCircle, Truck, MapPin, Clock, User, Package, Navigation, Ruler, Gauge, Wifi, Bell,
 } from "lucide-react";
+import { useDeliverySocket } from "@/hooks/use-delivery-socket";
 
 const DriverMap = dynamic(() => import("@/components/map/delivery-track-map"), {
   ssr: false,
@@ -24,11 +25,27 @@ export default function DriverPage() {
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [routeTime, setRouteTime] = useState<number | null>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
+  const [newOrderAlert, setNewOrderAlert] = useState(false);
   const watchRef = useRef<number | null>(null);
   const sendRef = useRef<any>(null);
   const deliveryIdRef = useRef<string | null>(null);
   const myPosRef = useRef<{ lat: number; lng: number } | null>(null);
   const speedRef = useRef(0);
+  const routeThrottle = useRef<any>(null);
+
+  // Socket.IO: recevoir nouvelles commandes en temps reel
+  useDeliverySocket({
+    asDriver: true,
+    onNewOrder: useCallback((data: any) => {
+      // Ajouter la commande a la liste
+      setPendingOrders((prev) => {
+        if (prev.find((o) => o.id === data.id)) return prev;
+        return [{ ...data, client: { name: data.clientName } }, ...prev];
+      });
+      setNewOrderAlert(true);
+      setTimeout(() => setNewOrderAlert(false), 5000);
+    }, []),
+  });
 
   useEffect(() => {
     loadData();
@@ -64,20 +81,20 @@ export default function DriverPage() {
     setLoading(false);
   }
 
-  // Calculer la route vers le client
-  const calcRoute = useCallback(async (from: { lat: number; lng: number }, to: { lat: number; lng: number }) => {
-    try {
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`
-      );
-      const data = await res.json();
-      if (data.routes?.[0]) {
-        setRouteDistance(data.routes[0].distance);
-        setRouteTime(data.routes[0].duration);
-        return Math.round(data.routes[0].duration / 60);
-      }
-    } catch {}
-    return null;
+  const calcRoute = useCallback((from: { lat: number; lng: number }, to: { lat: number; lng: number }) => {
+    if (routeThrottle.current) clearTimeout(routeThrottle.current);
+    routeThrottle.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`
+        );
+        const data = await res.json();
+        if (data.routes?.[0]) {
+          setRouteDistance(data.routes[0].distance);
+          setRouteTime(data.routes[0].duration);
+        }
+      } catch {}
+    }, 5000);
   }, []);
 
   async function acceptOrder(orderId: string) {
@@ -116,7 +133,7 @@ export default function DriverPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ latitude: pos.lat, longitude: pos.lng, speed: speedRef.current }),
       });
-    }, 8000);
+    }, 5000);
   }
 
   function stopTracking() {
@@ -124,11 +141,9 @@ export default function DriverPage() {
     if (sendRef.current) { clearInterval(sendRef.current); sendRef.current = null; }
   }
 
-  // Recalculer la route quand la position change
   useEffect(() => {
     if (!myPos || !activeDelivery) return;
-    const clientPos = { lat: activeDelivery.deliveryLat, lng: activeDelivery.deliveryLng };
-    calcRoute(myPos, clientPos);
+    calcRoute(myPos, { lat: activeDelivery.deliveryLat, lng: activeDelivery.deliveryLng });
   }, [myPos?.lat, myPos?.lng, activeDelivery?.id]);
 
   async function updateStatus(deliveryId: string, status: string) {
@@ -164,13 +179,11 @@ export default function DriverPage() {
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>;
 
-  // Si livraison active -> affichage plein ecran
   if (activeDelivery) {
     const elapsed = startTime ? Math.round((Date.now() - startTime.getTime()) / 60000) : 0;
 
     return (
       <div className="space-y-3">
-        {/* Info livraison */}
         <div className="bg-blue-600/10 border border-blue-500/30 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-blue-400 flex items-center gap-2">
@@ -190,7 +203,6 @@ export default function DriverPage() {
             </div>
           </div>
 
-          {/* Stats temps reel */}
           <div className="grid grid-cols-3 gap-2 mb-3">
             <div className="bg-gray-900/50 rounded-lg p-2 text-center">
               <Gauge className="w-4 h-4 text-blue-400 mx-auto mb-0.5" />
@@ -209,7 +221,6 @@ export default function DriverPage() {
             </div>
           </div>
 
-          {/* Articles */}
           <div className="text-xs text-gray-400">
             {activeDelivery.items?.map((i: any) => (
               <span key={i.id} className="mr-2">{i.quantity}x {i.product?.name}</span>
@@ -217,7 +228,6 @@ export default function DriverPage() {
           </div>
         </div>
 
-        {/* Carte grande */}
         <div className="rounded-xl overflow-hidden border border-gray-800" style={{ height: "45vh" }}>
           <DriverMap
             driverPos={myPos}
@@ -226,7 +236,6 @@ export default function DriverPage() {
           />
         </div>
 
-        {/* Boutons action */}
         <div className="flex gap-2">
           {activeDelivery.delivery?.status === "PICKING_UP" && (
             <button onClick={() => updateStatus(activeDelivery.delivery.id, "DELIVERING")}
@@ -245,20 +254,39 @@ export default function DriverPage() {
     );
   }
 
-  // Pas de livraison active -> liste commandes
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white">Espace Livreur</h1>
-        <p className="text-gray-400 text-sm mt-1">Gerez vos livraisons</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Espace Livreur</h1>
+          <p className="text-gray-400 text-sm mt-1">Gerez vos livraisons</p>
+        </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-600/20 rounded-full">
+          <Wifi className="w-3 h-3 text-green-400 animate-pulse" />
+          <span className="text-[10px] text-green-400 font-medium">Connecte</span>
+        </div>
       </div>
 
+      {/* Alerte nouvelle commande */}
+      {newOrderAlert && (
+        <div className="bg-green-600/20 border border-green-500/30 rounded-xl p-3 flex items-center gap-3 animate-pulse">
+          <Bell className="w-5 h-5 text-green-400" />
+          <p className="text-sm text-green-400 font-medium">Nouvelle commande disponible !</p>
+        </div>
+      )}
+
       <div>
-        <h2 className="text-lg font-semibold text-white mb-2">Commandes disponibles</h2>
+        <h2 className="text-lg font-semibold text-white mb-2">
+          Commandes disponibles
+          {pendingOrders.length > 0 && (
+            <span className="ml-2 px-2 py-0.5 bg-green-600 text-white text-xs rounded-full">{pendingOrders.length}</span>
+          )}
+        </h2>
         {pendingOrders.length === 0 ? (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
             <Package className="w-10 h-10 text-gray-700 mx-auto mb-2" />
             <p className="text-gray-500 text-sm">Aucune commande en attente</p>
+            <p className="text-gray-600 text-xs mt-1">Les nouvelles commandes apparaitront automatiquement</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -272,7 +300,7 @@ export default function DriverPage() {
                   <span className="text-sm font-bold text-blue-400">{order.totalAmount?.toLocaleString()} FCFA</span>
                 </div>
                 <div className="text-xs text-gray-400 mb-3">
-                  {order.items?.map((i: any) => <span key={i.id} className="mr-2">{i.quantity}x {i.product?.name}</span>)}
+                  {order.items?.map((i: any) => <span key={i.id || i.productId} className="mr-2">{i.quantity}x {i.product?.name || i.name}</span>)}
                 </div>
                 <button onClick={() => acceptOrder(order.id)}
                   className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2">

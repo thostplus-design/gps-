@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Loader2, ShoppingBag, Clock, CheckCircle, Truck, XCircle, ArrowLeft, Eye } from "lucide-react";
+import { Loader2, ShoppingBag, Clock, CheckCircle, Truck, XCircle, ArrowLeft, Eye, Wifi } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDeliverySocket } from "@/hooks/use-delivery-socket";
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   PENDING: { label: "En attente", color: "bg-yellow-500/20 text-yellow-400", icon: Clock },
@@ -16,15 +18,26 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 };
 
 export default function OrdersPage() {
+  const { data: session } = useSession();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const clientId = (session?.user as any)?.id;
 
-  useEffect(() => {
+  const loadOrders = useCallback(() => {
     fetch("/api/orders")
       .then((r) => r.json())
       .then((data) => setOrders(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  // Temps reel: quand un livreur accepte/met a jour une de mes commandes
+  useDeliverySocket({
+    clientId,
+    onAccepted: useCallback(() => { loadOrders(); }, [loadOrders]),
+    onStatusChange: useCallback(() => { loadOrders(); }, [loadOrders]),
+  });
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>;
 
@@ -32,9 +45,13 @@ export default function OrdersPage() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Link href="/livraison" className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg"><ArrowLeft className="w-5 h-5" /></Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-xl sm:text-2xl font-bold text-white">Mes commandes</h1>
           <p className="text-gray-400 text-sm mt-1">{orders.length} commande(s)</p>
+        </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-600/20 rounded-full">
+          <Wifi className="w-3 h-3 text-green-400 animate-pulse" />
+          <span className="text-[10px] text-green-400 font-medium">En direct</span>
         </div>
       </div>
 

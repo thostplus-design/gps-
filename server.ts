@@ -21,16 +21,42 @@ app.prepare().then(() => {
   io.on("connection", (socket) => {
     console.log("[Socket.IO] Client connected:", socket.id);
 
+    // Tracking GPS devices
     socket.on("subscribe:device", (deviceId: string) => {
       socket.join(`device:${deviceId}`);
     });
-
     socket.on("subscribe:all", () => {
       socket.join("all-devices");
     });
-
     socket.on("unsubscribe:device", (deviceId: string) => {
       socket.leave(`device:${deviceId}`);
+    });
+
+    // Livraison: client suit sa commande
+    socket.on("subscribe:order", (orderId: string) => {
+      socket.join(`order:${orderId}`);
+      console.log(`[Socket.IO] ${socket.id} watching order:${orderId}`);
+    });
+    socket.on("unsubscribe:order", (orderId: string) => {
+      socket.leave(`order:${orderId}`);
+    });
+
+    // Livraison: livreur ecoute les nouvelles commandes
+    socket.on("subscribe:driver", () => {
+      socket.join("drivers");
+      console.log(`[Socket.IO] ${socket.id} joined drivers room`);
+    });
+    socket.on("unsubscribe:driver", () => {
+      socket.leave("drivers");
+    });
+
+    // Livraison: client ecoute ses commandes
+    socket.on("subscribe:client", (clientId: string) => {
+      socket.join(`client:${clientId}`);
+      console.log(`[Socket.IO] ${socket.id} joined client:${clientId}`);
+    });
+    socket.on("unsubscribe:client", (clientId: string) => {
+      socket.leave(`client:${clientId}`);
     });
 
     socket.on("disconnect", () => {

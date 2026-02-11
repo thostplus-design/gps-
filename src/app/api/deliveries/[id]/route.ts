@@ -44,13 +44,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   const io = (global as any).io;
   if (io) {
-    io.to(`order:${delivery.orderId}`).emit("delivery:status", {
+    const eventData = {
       deliveryId: id,
+      orderId: delivery.orderId,
       status: body.status,
       currentLat: body.currentLat,
       currentLng: body.currentLng,
       estimatedMinutes: body.estimatedMinutes,
-    });
+    };
+    // Notifier le suivi de commande
+    io.to(`order:${delivery.orderId}`).emit("delivery:status", eventData);
+    // Notifier la liste de commandes du client
+    io.to(`client:${delivery.order.clientId}`).emit("delivery:status", eventData);
   }
 
   return NextResponse.json(delivery);

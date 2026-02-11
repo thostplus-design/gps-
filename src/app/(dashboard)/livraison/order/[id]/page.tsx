@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Loader2, ArrowLeft, Clock, CheckCircle, Truck, ShoppingBag, MapPin,
-  User, Navigation, Ruler, Gauge,
+  User, Navigation, Ruler, Gauge, Wifi,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDeliverySocket } from "@/hooks/use-delivery-socket";
 
 const TrackMap = dynamic(() => import("@/components/map/delivery-track-map"), {
   ssr: false,
@@ -34,58 +35,88 @@ function fmtHour(d: Date) { return d.toLocaleTimeString("fr-FR", { hour: "2-digi
 
 export default function OrderDetailPage() {
   const { id } = useParams();
+  const orderId = id as string;
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [driverPos, setDriverPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [positions, setPositions] = useState<any[]>([]);
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
   const [routeTime, setRouteTime] = useState<number | null>(null);
   const [driverSpeed, setDriverSpeed] = useState<number>(0);
-  const pollRef = useRef<any>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const routeThrottle = useRef<any>(null);
 
-  useEffect(() => {
-    loadOrder();
-    // Polling rapide (3s) quand livraison active
-    pollRef.current = setInterval(loadOrder, 3000);
-    return () => clearInterval(pollRef.current);
-  }, [id]);
+  // Calcul route OSRM (throttled)
+  const calcRoute = useCallback((from: { lat: number; lng: number }, to: { lat: number; lng: number }) => {
+    if (routeThrottle.current) clearTimeout(routeThrottle.current);
+    routeThrottle.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`
+        );
+        const data = await res.json();
+        if (data.routes?.[0]) {
+          setRouteDistance(data.routes[0].distance);
+          setRouteTime(data.routes[0].duration);
+        }
+      } catch {}
+    }, 3000); // Max 1 appel OSRM toutes les 3s
+  }, []);
 
-  async function loadOrder() {
+  // Socket.IO temps reel
+  useDeliverySocket({
+    orderId,
+    onPosition: useCallback((data: any) => {
+      const newPos = { lat: data.latitude, lng: data.longitude };
+      setDriverPos(newPos);
+      if (data.speed != null) setDriverSpeed(Math.round(data.speed));
+      setLastUpdate(new Date());
+      // Ajouter a l'historique
+      setPositions((prev) => [...prev, { ...data, id: Date.now() }]);
+      // Recalculer route
+      if (order?.deliveryLat && order?.deliveryLng) {
+        calcRoute(newPos, { lat: order.deliveryLat, lng: order.deliveryLng });
+      }
+    }, [order?.deliveryLat, order?.deliveryLng, calcRoute]),
+    onStatusChange: useCallback((data: any) => {
+      // Recharger la commande pour avoir le nouveau statut
+      loadOrderFn();
+    }, []),
+    onAccepted: useCallback((data: any) => {
+      loadOrderFn();
+    }, []),
+  });
+
+  const loadOrderFn = useCallback(async () => {
     try {
-      const res = await fetch(`/api/orders/${id}`);
+      const res = await fetch(`/api/orders/${orderId}`);
       const data = await res.json();
       setOrder(data);
-
       if (data.delivery?.currentLat && data.delivery?.currentLng) {
-        const newPos = { lat: data.delivery.currentLat, lng: data.delivery.currentLng };
-        setDriverPos(newPos);
-
-        // Derniere vitesse connue
-        const lastPos = data.delivery?.positions?.[0];
-        if (lastPos?.speed) setDriverSpeed(Math.round(lastPos.speed));
-
-        // Calculer distance/temps via OSRM
-        if (data.deliveryLat && data.deliveryLng) {
-          calcRoute(newPos, { lat: data.deliveryLat, lng: data.deliveryLng });
-        }
+        setDriverPos({ lat: data.delivery.currentLat, lng: data.delivery.currentLng });
+      }
+      if (data.delivery?.positions) {
+        setPositions(data.delivery.positions);
+        const lastPos = data.delivery.positions[0];
+        if (lastPos?.speed != null) setDriverSpeed(Math.round(lastPos.speed));
       }
       setLoading(false);
     } catch {
       setLoading(false);
     }
-  }
+  }, [orderId]);
 
-  async function calcRoute(from: { lat: number; lng: number }, to: { lat: number; lng: number }) {
-    try {
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`
-      );
-      const data = await res.json();
-      if (data.routes?.[0]) {
-        setRouteDistance(data.routes[0].distance);
-        setRouteTime(data.routes[0].duration);
-      }
-    } catch {}
-  }
+  // Charger les donnees initiales
+  useEffect(() => {
+    loadOrderFn();
+  }, [loadOrderFn]);
+
+  // Calcul route initial
+  useEffect(() => {
+    if (driverPos && order?.deliveryLat && order?.deliveryLng) {
+      calcRoute(driverPos, { lat: order.deliveryLat, lng: order.deliveryLng });
+    }
+  }, [driverPos?.lat, order?.deliveryLat]);
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>;
   if (!order) return <p className="text-gray-400">Commande introuvable</p>;
@@ -99,10 +130,16 @@ export default function OrderDetailPage() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Link href="/livraison/order" className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg"><ArrowLeft className="w-5 h-5" /></Link>
-        <div>
-          <h1 className="text-xl font-bold text-white">Commande #{(order.id as string).slice(-6)}</h1>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-white">Commande #{orderId.slice(-6)}</h1>
           <p className="text-gray-400 text-xs">{new Date(order.createdAt).toLocaleString("fr-FR")}</p>
         </div>
+        {isActive && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-600/20 rounded-full">
+            <Wifi className="w-3 h-3 text-green-400 animate-pulse" />
+            <span className="text-[10px] text-green-400 font-medium">En direct</span>
+          </div>
+        )}
       </div>
 
       {/* Progress bar */}
@@ -177,21 +214,19 @@ export default function OrderDetailPage() {
             <TrackMap
               driverPos={driverPos}
               clientPos={{ lat: order.deliveryLat, lng: order.deliveryLng }}
-              positions={order.delivery?.positions || []}
+              positions={positions}
             />
           </div>
 
-          {/* Depart */}
-          {departTime && (
-            <div className="px-4 py-2 border-t border-gray-800 flex items-center justify-between text-xs text-gray-500">
-              <span>Depart a {fmtHour(departTime)}</span>
-              <span>Mis a jour toutes les 3s</span>
-            </div>
-          )}
+          {/* Depart + last update */}
+          <div className="px-4 py-2 border-t border-gray-800 flex items-center justify-between text-xs text-gray-500">
+            <span>{departTime ? `Depart a ${fmtHour(departTime)}` : ""}</span>
+            <span>{lastUpdate ? `Maj ${fmtHour(lastUpdate)}` : "Temps reel via WebSocket"}</span>
+          </div>
         </div>
       )}
 
-      {/* Livree - resume */}
+      {/* Livree */}
       {order.status === "DELIVERED" && order.delivery && (
         <div className="bg-green-600/10 border border-green-500/30 rounded-xl p-4 text-center">
           <CheckCircle className="w-10 h-10 text-green-400 mx-auto mb-2" />
@@ -232,12 +267,12 @@ export default function OrderDetailPage() {
       )}
 
       {/* Historique mouvements */}
-      {order.delivery?.positions?.length > 0 && (
+      {positions.length > 0 && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-sm font-semibold text-white mb-2">Historique mouvements ({order.delivery.positions.length})</p>
+          <p className="text-sm font-semibold text-white mb-2">Historique mouvements ({positions.length})</p>
           <div className="max-h-40 overflow-y-auto space-y-1">
-            {order.delivery.positions.map((pos: any, i: number) => (
-              <div key={pos.id} className="flex items-center gap-3 text-xs py-1 border-b border-gray-800/50 last:border-0">
+            {positions.map((pos: any, i: number) => (
+              <div key={pos.id || i} className="flex items-center gap-3 text-xs py-1 border-b border-gray-800/50 last:border-0">
                 <span className="text-gray-600 w-5">{i + 1}</span>
                 <MapPin className="w-3 h-3 text-blue-400 shrink-0" />
                 <span className="text-gray-400">{pos.latitude.toFixed(5)}, {pos.longitude.toFixed(5)}</span>
