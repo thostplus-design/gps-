@@ -298,17 +298,20 @@ model Order {
   deliveryLat     Float
   deliveryLng     Float
   note            String?
+  guestName       String?
+  guestPhone      String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  clientId String
-  client   User   @relation("ClientOrders", fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String?
+  client   User?   @relation("ClientOrders", fields: [clientId], references: [id], onDelete: Cascade)
 
   items    OrderItem[]
   delivery Delivery?
 
   @@index([clientId, status])
   @@index([status])
+  @@index([guestPhone])
   @@map("orders")
 }
 

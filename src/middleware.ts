@@ -7,8 +7,19 @@ export function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const publicPaths = ["/login", "/register", "/api/auth", "/api/tracking"];
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
+  const publicPaths = [
+    "/login",
+    "/register",
+    "/api/auth",
+    "/api/tracking",
+    "/api/products",
+    "/api/orders/guest",
+    "/api/orders/track",
+    "/track",
+  ];
+  const isPublic =
+    pathname === "/" ||
+    publicPaths.some((p) => pathname.startsWith(p));
 
   if (!sessionCookie && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
@@ -22,5 +33,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|images).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|images|sounds).*)"],
 };
