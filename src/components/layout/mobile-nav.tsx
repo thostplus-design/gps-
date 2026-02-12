@@ -53,7 +53,6 @@ const dropdownItems: Record<string, { label: string; href: string; icon: any }[]
   DEFAULT: [
     { label: "Cuisine", href: "/cuisine", icon: ChefHat },
     { label: "Livreurs", href: "/drivers", icon: Truck },
-    { label: "Commander", href: "/livraison", icon: ShoppingBag },
     { label: "Alertes", href: "/alerts", icon: Bell },
     { label: "Utilisateurs", href: "/users", icon: Users },
     { label: "Parametres", href: "/settings", icon: Settings },

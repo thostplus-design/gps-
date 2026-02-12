@@ -21,7 +21,7 @@ import {
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: null },
   { label: "Cuisine", href: "/cuisine", icon: ChefHat, roles: ["COOK", "ADMIN"] },
-  { label: "Commander", href: "/livraison", icon: ShoppingBag, roles: ["ADMIN", "CLIENT"] },
+  { label: "Commander", href: "/livraison", icon: ShoppingBag, roles: ["CLIENT"] },
   { label: "Commandes", href: "/livraison/order", icon: ClipboardList, roles: ["ADMIN", "CLIENT", "DRIVER", "COOK"] },
   { label: "Alertes", href: "/alerts", icon: Bell, roles: ["ADMIN", "MANAGER", "VIEWER"] },
 ];
