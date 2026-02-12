@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Loader2, ShoppingBag, Clock, CheckCircle, Truck, XCircle, Eye, Wifi,
-  MapPin, User, Bell, X, ChevronDown, ChefHat, Timer,
+  MapPin, User, Bell, X, ChevronDown, ChefHat, Timer, Navigation,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDeliverySocket } from "@/hooks/use-delivery-socket";
@@ -534,10 +534,22 @@ export default function CommandesPage() {
                         <span key={i.id || i.productId} className="mr-2">{i.quantity}x {i.product?.name || i.name}</span>
                       ))}
                     </div>
-                    <button onClick={() => acceptOrder(order.id)}
-                      className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4" /> Accepter la livraison
-                    </button>
+                    <div className="flex gap-2">
+                      <button onClick={() => acceptOrder(order.id)}
+                        className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+                        <CheckCircle className="w-4 h-4" /> Accepter
+                      </button>
+                      {order.deliveryLat && order.deliveryLng && (
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2.5 px-3 bg-blue-600/10 border border-blue-500/20 hover:bg-blue-600/20 text-blue-400 rounded-lg text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+                        >
+                          <Navigation className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               );
@@ -582,6 +594,19 @@ export default function CommandesPage() {
                       )}
                     </div>
                   </Link>
+
+                  {/* Bouton itineraire pour livreur/admin */}
+                  {isDriver && order.deliveryLat && order.deliveryLng && (tab === "active" || tab === "delivered") && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 w-full py-2 bg-blue-600/10 border border-blue-500/20 hover:bg-blue-600/20 text-blue-400 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Navigation className="w-3.5 h-3.5" />
+                      Itineraire Google Maps
+                    </a>
+                  )}
 
                   {/* Bouton annuler avec formulaire expandable */}
                   {canCancelOrder(order) && tab !== "delivered" && (
