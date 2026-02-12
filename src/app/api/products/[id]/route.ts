@@ -25,6 +25,14 @@ export async function DELETE(
     return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const { id } = await params;
-  await prisma.product.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+
+  try {
+    // Supprimer les OrderItems liés d'abord
+    await prisma.orderItem.deleteMany({ where: { productId: id } });
+    // Puis supprimer le produit
+    await prisma.product.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Erreur lors de la suppression" }, { status: 500 });
+  }
 }
