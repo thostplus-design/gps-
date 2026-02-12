@@ -32,7 +32,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-[#1c1c1e] rounded-2xl p-6 sm:p-8 border border-white/[0.06] shadow-2xl shadow-black/40 mx-4 sm:mx-0 w-full max-w-sm">
+    <div className="bg-[#1c1c1e] sm:rounded-2xl p-6 sm:p-8 border-y sm:border border-white/[0.06] shadow-2xl shadow-black/40 w-full">
       <div className="flex flex-col items-center mb-8">
         <div className="bg-orange-600 p-3 rounded-2xl mb-3">
           <UtensilsCrossed className="w-7 h-7 text-white" />
