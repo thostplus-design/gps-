@@ -257,8 +257,6 @@ export default function ProductsPage() {
     return true;
   });
 
-  const deliveredOrders = orders.filter((o: any) => o.status === "DELIVERED" || o.delivery?.status === "DELIVERED");
-  const shops = [...new Set(filteredProducts.map((p) => p.shopName))];
   const mealsCount = products.filter((p) => !p.isExtra).length;
   const extrasCount = products.filter((p) => p.isExtra).length;
 
@@ -302,64 +300,64 @@ export default function ProductsPage() {
             </button>
           </div>
 
-          {/* Liste par boutique */}
-          {shops.map((shop) => {
-            const shopProducts = filteredProducts.filter((p) => p.shopName === shop);
-            return (
-              <div key={shop}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Store className="w-4 h-4 text-gray-500" />
-                  <h3 className="text-sm font-semibold text-white">{shop}</h3>
-                  <span className="text-xs text-gray-600">{shopProducts.length} repas</span>
-                </div>
-                <div className="space-y-2">
-                  {shopProducts.map((p) => {
-                    const cat = categoryConfig[p.category] || categoryConfig.OTHER;
-                    const CatIcon = cat.icon;
+          {/* Grille produits */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filteredProducts.map((p) => {
+              const cat = categoryConfig[p.category] || categoryConfig.OTHER;
+              const CatIcon = cat.icon;
 
-                    return (
-                      <Card key={p.id}>
-                        <CardContent className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center shrink-0">
-                            {p.image ? <img src={p.image} alt="" className="w-10 h-10 rounded-lg object-cover" /> : <CatIcon className="w-5 h-5 text-gray-500" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium text-white truncate">{p.name}</p>
-                              {p.isExtra && (
-                                <span className="px-1.5 py-0.5 bg-orange-500/20 text-orange-400 text-[10px] rounded font-medium flex items-center gap-0.5">
-                                  <Droplets className="w-2.5 h-2.5" /> Extra
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 text-xs text-gray-500">
-                              <span>{p.price?.toLocaleString()} FCFA</span>
-                              {!p.isExtra && (
-                                <span className="flex items-center gap-0.5 text-orange-400/70">
-                                  <Timer className="w-3 h-3" /> {p.cookingTimeMin || 15}min
-                                </span>
-                              )}
-                              <span className="flex items-center gap-0.5">
-                                <CreditCard className="w-3 h-3" /> {paymentMethodLabels[p.paymentMethod] || "Les deux"}
-                              </span>
-                            </div>
-                          </div>
-                          <button onClick={() => openEditDialog(p)}
-                            className="p-2 text-gray-500 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => confirmDeleteProduct(p.id, p.name)}
-                            className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+              return (
+                <Card key={p.id}>
+                  <CardContent className="flex flex-col gap-3">
+                    {/* Image + badge */}
+                    <div className="relative">
+                      <div className="w-full h-32 bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden">
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} className="w-full h-full object-cover rounded-lg" />
+                        ) : (
+                          <CatIcon className="w-8 h-8 text-gray-600" />
+                        )}
+                      </div>
+                      {p.isExtra && (
+                        <span className="absolute top-2 right-2 px-1.5 py-0.5 bg-orange-500/90 text-white text-[10px] rounded font-medium flex items-center gap-0.5">
+                          <Droplets className="w-2.5 h-2.5" /> Extra
+                        </span>
+                      )}
+                    </div>
+                    {/* Infos */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{p.name}</p>
+                      {p.description && (
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{p.description}</p>
+                      )}
+                      <p className="text-base font-bold text-orange-400 mt-1">{p.price?.toLocaleString()} FCFA</p>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                        {!p.isExtra && (
+                          <span className="flex items-center gap-0.5 text-orange-400/70">
+                            <Timer className="w-3 h-3" /> {p.cookingTimeMin || 15}min
+                          </span>
+                        )}
+                        <span className="flex items-center gap-0.5">
+                          <CreditCard className="w-3 h-3" /> {paymentMethodLabels[p.paymentMethod] || "Les deux"}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-2 border-t border-gray-800">
+                      <button onClick={() => openEditDialog(p)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-400 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors">
+                        <Edit2 className="w-3.5 h-3.5" /> Modifier
+                      </button>
+                      <button onClick={() => confirmDeleteProduct(p.id, p.name)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
           {filteredProducts.length === 0 && (
             <EmptyState icon={UtensilsCrossed} message="Aucun repas" />
           )}
