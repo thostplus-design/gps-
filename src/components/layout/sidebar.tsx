@@ -39,8 +39,10 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const role = (session?.user as any)?.role || "VIEWER";
+  const { data: session, status } = useSession();
+  const role = (session?.user as any)?.role;
+
+  if (status === "loading" || !role) return null;
 
   const filteredItems = navItems.filter(
     (item) => item.roles === null || item.roles.includes(role)

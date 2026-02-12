@@ -62,8 +62,8 @@ const dropdownItems: Record<string, { label: string; href: string; icon: any }[]
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const role = (session?.user as any)?.role || "VIEWER";
+  const { data: session, status } = useSession();
+  const role = (session?.user as any)?.role;
   const [showMenu, setShowMenu] = useState(false);
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
@@ -99,6 +99,8 @@ export function MobileNav() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showMenu]);
+
+  if (status === "loading" || !role) return null;
 
   const items = mobileItems[role] || mobileItems.DEFAULT;
   const extraItems = dropdownItems[role] || dropdownItems.DEFAULT;
