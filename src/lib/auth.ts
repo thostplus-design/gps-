@@ -46,6 +46,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as any).role;
         token.id = user.id;
       }
+
+      // Rafraichir le role depuis la DB a chaque requete
+      // pour detecter les changements de role en temps reel
+      if (token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { role: true, isActive: true, name: true },
+          });
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.name = dbUser.name;
+          }
+          // Si le compte est desactive, invalider le token
+          if (dbUser && !dbUser.isActive) {
+            return {} as any;
+          }
+        } catch {
+          // En cas d'erreur DB, garder le role du token
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

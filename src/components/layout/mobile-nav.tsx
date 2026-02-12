@@ -26,8 +26,7 @@ const mobileItems: Record<string, { label: string; href: string; icon: any }[]> 
   ],
   DRIVER: [
     { label: "Accueil", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
-    { label: "Produits", href: "/products", icon: Package },
+    { label: "Livraisons", href: "/livraison/order", icon: Truck },
   ],
   COOK: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
