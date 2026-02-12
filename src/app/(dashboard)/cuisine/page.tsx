@@ -254,7 +254,7 @@ export default function CuisinePage() {
                   {/* Actions */}
                   {tab === "pending" && (
                     <button onClick={() => acceptOrder(order.id)} disabled={accepting === order.id}
-                      className="w-full py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                      className="w-full sm:w-auto py-2.5 px-6 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                       {accepting === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChefHat className="w-4 h-4" />}
                       Accepter et preparer
                     </button>
@@ -262,7 +262,7 @@ export default function CuisinePage() {
 
                   {tab === "preparing" && (
                     <button onClick={() => markReady(order.id)} disabled={readying === order.id}
-                      className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                      className="w-full sm:w-auto py-2.5 px-6 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                       {readying === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                       Commande prete !
                     </button>
