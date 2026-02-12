@@ -111,15 +111,15 @@ export function MobileNav() {
       )}
 
       {showMenu && (
-        <div ref={menuRef} className="fixed bottom-[4.2rem] right-3 z-50 w-56 bg-[#1c1c1e]/95 backdrop-blur-xl rounded-xl shadow-2xl shadow-black/60 overflow-hidden lg:hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06]">
+        <div ref={menuRef} className="fixed bottom-[4.8rem] right-3 z-50 w-56 bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/40 border border-gray-800 overflow-hidden lg:hidden">
+          <div className="px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-700 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0">
                 {initials}
               </div>
               <div className="min-w-0">
                 <p className="text-[13px] font-semibold text-white truncate">{userName}</p>
-                <p className="text-[11px] text-[#999] truncate">{userEmail}</p>
+                <p className="text-[11px] text-gray-500 truncate">{userEmail}</p>
               </div>
             </div>
           </div>
@@ -131,17 +131,17 @@ export function MobileNav() {
                 <Link key={item.href} href={item.href} onClick={() => setShowMenu(false)}
                   className={cn(
                     "flex items-center gap-3 px-4 py-2.5 text-[13px] font-normal transition-colors",
-                    isActive ? "text-orange-400 bg-orange-500/10" : "text-white active:bg-white/5"
+                    isActive ? "text-orange-400 bg-orange-500/10" : "text-gray-300 active:bg-gray-800"
                   )}>
-                  <Icon className={cn("w-[18px] h-[18px]", isActive ? "text-orange-400" : "text-[#999]")} />
+                  <Icon className={cn("w-[18px] h-[18px]", isActive ? "text-orange-400" : "text-gray-500")} />
                   {item.label}
                 </Link>
               );
             })}
           </div>
-          <div className="border-t border-white/[0.06] py-1">
+          <div className="border-t border-gray-800 py-1">
             <button onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex items-center gap-3 px-4 py-2.5 text-[13px] font-normal text-red-400 active:bg-white/5 transition-colors w-full">
+              className="flex items-center gap-3 px-4 py-2.5 text-[13px] font-normal text-red-400 active:bg-gray-800 transition-colors w-full">
               <LogOut className="w-[18px] h-[18px]" />
               Deconnexion
             </button>
@@ -150,10 +150,10 @@ export function MobileNav() {
       )}
 
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 z-30 lg:hidden transition-transform duration-200",
-        visible ? "translate-y-0" : "translate-y-full"
+        "fixed bottom-3 left-3 right-3 z-30 lg:hidden transition-all duration-200",
+        visible ? "translate-y-0 opacity-100" : "translate-y-[calc(100%+1rem)] opacity-0"
       )}>
-        <div className="bg-[#1c1c1e]/[0.97] backdrop-blur-xl border-t border-white/[0.08]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="bg-gray-900/[0.97] backdrop-blur-xl border border-gray-800 rounded-2xl shadow-lg shadow-black/20" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex items-stretch h-[3.2rem]">
             {items.map((item) => {
               const Icon = item.icon;
@@ -166,11 +166,11 @@ export function MobileNav() {
                   className="flex flex-col items-center justify-center flex-1 gap-[3px]">
                   <Icon className={cn(
                     "w-[24px] h-[24px] transition-colors",
-                    isActive ? "text-orange-500" : "text-[#999]"
+                    isActive ? "text-orange-500" : "text-gray-500"
                   )} strokeWidth={isActive ? 2.1 : 1.5} />
                   <span className={cn(
                     "text-[10px] leading-none",
-                    isActive ? "text-orange-500 font-semibold" : "text-[#999] font-medium"
+                    isActive ? "text-orange-500 font-semibold" : "text-gray-500 font-medium"
                   )}>{item.label}</span>
                 </Link>
               );
@@ -180,13 +180,13 @@ export function MobileNav() {
               className="flex flex-col items-center justify-center flex-1 gap-[3px]">
               <div className={cn(
                 "w-[24px] h-[24px] rounded-full flex items-center justify-center text-[9px] font-bold transition-colors",
-                showMenu ? "bg-orange-500 text-white" : "bg-[#666] text-[#ddd]"
+                showMenu ? "bg-orange-500 text-white" : "bg-gray-600 text-gray-300"
               )}>
                 {initials}
               </div>
               <span className={cn(
                 "text-[10px] leading-none",
-                showMenu ? "text-orange-500 font-semibold" : "text-[#999] font-medium"
+                showMenu ? "text-orange-500 font-semibold" : "text-gray-500 font-medium"
               )}>Profil</span>
             </button>
           </div>

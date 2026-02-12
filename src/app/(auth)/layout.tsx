@@ -18,25 +18,25 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-950">
-      {/* Bouton light/dark en haut à droite */}
+      {/* Bouton light/dark en haut a droite */}
       <div className="fixed top-4 right-4 z-40">
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="p-2.5 rounded-xl bg-[#1c1c1e]/80 backdrop-blur-xl border border-white/[0.08] text-[#999] hover:text-white transition-colors"
+          className="p-2.5 rounded-xl bg-gray-900/80 backdrop-blur-xl border border-gray-800 text-gray-500 hover:text-gray-300 transition-colors shadow-lg shadow-black/10"
         >
           {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-0 sm:px-6 pb-16 sm:pb-0">
+      <div className="flex-1 flex items-center justify-center px-0 sm:px-6 pb-20 sm:pb-0">
         <div className="w-full sm:max-w-md">
           {children}
         </div>
       </div>
 
-      {/* Bottom bar auth — style Telegram */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 sm:hidden">
-        <div className="bg-[#1c1c1e]/[0.97] backdrop-blur-xl border-t border-white/[0.08]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      {/* Bottom bar auth — flottant arrondi */}
+      <nav className="fixed bottom-3 left-3 right-3 z-30 sm:hidden">
+        <div className="bg-gray-900/[0.97] backdrop-blur-xl border border-gray-800 rounded-2xl shadow-lg shadow-black/20" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
           <div className="flex items-stretch h-[3.2rem]">
             {authTabs.map((tab) => {
               const Icon = tab.icon;
@@ -46,11 +46,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                   className="flex flex-col items-center justify-center flex-1 gap-[3px]">
                   <Icon className={cn(
                     "w-[24px] h-[24px] transition-colors",
-                    isActive ? "text-orange-500" : "text-[#999]"
+                    isActive ? "text-orange-500" : "text-gray-500"
                   )} strokeWidth={isActive ? 2.1 : 1.5} />
                   <span className={cn(
                     "text-[10px] leading-none",
-                    isActive ? "text-orange-500 font-semibold" : "text-[#999] font-medium"
+                    isActive ? "text-orange-500 font-semibold" : "text-gray-500 font-medium"
                   )}>{tab.label}</span>
                 </Link>
               );

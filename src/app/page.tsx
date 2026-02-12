@@ -175,7 +175,7 @@ export default function LandingPage() {
           </span>
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] text-[#999] hover:text-white transition-colors"
+            className="p-2.5 rounded-xl bg-gray-900/80 backdrop-blur-xl border border-gray-800 text-gray-500 hover:text-gray-300 transition-colors shadow-lg shadow-black/10"
           >
             {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
@@ -435,27 +435,21 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Navigation mobile fixe */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden">
-        <div className="bg-gray-900/80 backdrop-blur-lg border-t border-gray-800/50">
-          <div className="flex items-center justify-around h-16 px-2">
-            <Link href="/track" className="flex flex-col items-center justify-center flex-1 py-1 group">
-              <div className="p-2 rounded-2xl">
-                <ClipboardList className="w-5 h-5 text-gray-500 group-active:text-gray-300 transition-colors" />
-              </div>
-              <span className="text-[10px] mt-0.5 font-medium text-gray-500">Commandes</span>
+      {/* Navigation mobile fixe — flottant arrondi */}
+      <nav className="fixed bottom-3 left-3 right-3 z-30 lg:hidden">
+        <div className="bg-gray-900/[0.97] backdrop-blur-xl border border-gray-800 rounded-2xl shadow-lg shadow-black/20">
+          <div className="flex items-stretch h-[3.2rem]">
+            <Link href="/track" className="flex flex-col items-center justify-center flex-1 gap-[3px]">
+              <ClipboardList className="w-[24px] h-[24px] text-gray-500 transition-colors" strokeWidth={1.5} />
+              <span className="text-[10px] leading-none text-gray-500 font-medium">Commandes</span>
             </Link>
-            <a href="#menu" className="flex flex-col items-center justify-center flex-1 py-1 group">
-              <div className="p-2 rounded-2xl">
-                <ShoppingBag className="w-5 h-5 text-orange-500 transition-colors" />
-              </div>
-              <span className="text-[10px] mt-0.5 font-semibold text-orange-500">Commander</span>
+            <a href="#menu" className="flex flex-col items-center justify-center flex-1 gap-[3px]">
+              <ShoppingBag className="w-[24px] h-[24px] text-orange-500 transition-colors" strokeWidth={2.1} />
+              <span className="text-[10px] leading-none text-orange-500 font-semibold">Commander</span>
             </a>
-            <Link href="/login" className="flex flex-col items-center justify-center flex-1 py-1 group">
-              <div className="p-2 rounded-2xl">
-                <LogIn className="w-5 h-5 text-gray-500 group-active:text-gray-300 transition-colors" />
-              </div>
-              <span className="text-[10px] mt-0.5 font-medium text-gray-500">Connexion</span>
+            <Link href="/login" className="flex flex-col items-center justify-center flex-1 gap-[3px]">
+              <LogIn className="w-[24px] h-[24px] text-gray-500 transition-colors" strokeWidth={1.5} />
+              <span className="text-[10px] leading-none text-gray-500 font-medium">Connexion</span>
             </Link>
           </div>
         </div>
