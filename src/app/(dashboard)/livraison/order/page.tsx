@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   Loader2, ShoppingBag, Clock, CheckCircle, Truck, XCircle, Eye, Wifi,
-  MapPin, User, Bell, X, ChevronDown, ChefHat,
+  MapPin, User, Bell, X, ChevronDown, ChefHat, Timer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDeliverySocket } from "@/hooks/use-delivery-socket";
@@ -61,15 +61,61 @@ function playSound(type: "new-order" | "accepted") {
   } catch {}
 }
 
+function CookingCountdown({ cookAcceptedAt, cookingTimeMin }: { cookAcceptedAt: string; cookingTimeMin: number }) {
+  const [remaining, setRemaining] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const totalMs = cookingTimeMin * 60 * 1000;
+    const update = () => {
+      const elapsed = Date.now() - new Date(cookAcceptedAt).getTime();
+      const rem = Math.max(0, totalMs - elapsed);
+      setRemaining(Math.ceil(rem / 1000));
+      setProgress(Math.min(100, (elapsed / totalMs) * 100));
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [cookAcceptedAt, cookingTimeMin]);
+
+  const min = Math.floor(remaining / 60);
+  const sec = remaining % 60;
+  const isOverdue = remaining === 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Timer className={cn("w-4 h-4", isOverdue ? "text-red-400" : "text-orange-400")} />
+          <span className={cn("text-sm font-semibold", isOverdue ? "text-red-400" : "text-white")}>
+            {isOverdue ? "Temps ecoule !" : `${min}:${sec.toString().padStart(2, "0")}`}
+          </span>
+        </div>
+        <span className="text-xs text-gray-500">{cookingTimeMin} min prevues</span>
+      </div>
+      <div className="w-full bg-gray-800 rounded-full h-2">
+        <div
+          className={cn(
+            "h-2 rounded-full transition-all duration-1000",
+            isOverdue ? "bg-red-500" : progress > 75 ? "bg-yellow-500" : "bg-orange-500"
+          )}
+          style={{ width: `${Math.min(progress, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 type Tab = "pending" | "active" | "delivered";
 
 export default function CommandesPage() {
   const { data: session } = useSession();
   const role = (session?.user as any)?.role || "CLIENT";
   const clientId = (session?.user as any)?.id;
+  const isCook = role === "COOK";
   const isDriver = role === "DRIVER" || role === "ADMIN";
 
-  const [tab, setTab] = useState<Tab>("active");
+  const [tab, setTab] = useState<Tab>(isCook ? "pending" : "active");
   const [orders, setOrders] = useState<any[]>([]);
   const [pendingOrders, setPendingOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,9 +124,11 @@ export default function CommandesPage() {
   const [cancelFormId, setCancelFormId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [customReason, setCustomReason] = useState("");
+  const [accepting, setAccepting] = useState<string | null>(null);
+  const [readying, setReadying] = useState<string | null>(null);
   const posRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  // Obtenir position GPS pour l'acceptation
+  // Obtenir position GPS pour l'acceptation livreur
   useEffect(() => {
     if (isDriver && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -92,7 +140,11 @@ export default function CommandesPage() {
   }, [isDriver]);
 
   const loadData = useCallback(async () => {
-    if (isDriver) {
+    if (isCook) {
+      // Cuisinier: charger depuis l'API cook
+      const data = await fetch("/api/orders/cook").then((r) => r.json());
+      setOrders(Array.isArray(data) ? data : []);
+    } else if (isDriver) {
       const [pending, driverOrders] = await Promise.all([
         fetch("/api/orders/pending").then((r) => r.json()),
         fetch("/api/orders?as=driver").then((r) => r.json()),
@@ -104,15 +156,30 @@ export default function CommandesPage() {
       setOrders(Array.isArray(data) ? data : []);
     }
     setLoading(false);
-  }, [isDriver]);
+  }, [isCook, isDriver]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Polling pour cuisinier (fallback)
+  useEffect(() => {
+    if (!isCook) return;
+    const interval = setInterval(loadData, 8000);
+    return () => clearInterval(interval);
+  }, [isCook, loadData]);
 
   // Socket.IO
   useDeliverySocket({
     asDriver: isDriver,
-    clientId: !isDriver ? clientId : undefined,
+    asCook: isCook,
+    clientId: !isDriver && !isCook ? clientId : undefined,
     onNewOrder: useCallback((data: any) => {
+      if (isCook) {
+        loadData();
+        setNewAlert(true);
+        playSound("new-order");
+        setTimeout(() => setNewAlert(false), 5000);
+        return;
+      }
       if (!isDriver) return;
       setPendingOrders((prev) => {
         if (prev.find((o: any) => o.id === data.id)) return prev;
@@ -121,10 +188,10 @@ export default function CommandesPage() {
       setNewAlert(true);
       playSound("new-order");
       setTimeout(() => setNewAlert(false), 5000);
-    }, [isDriver]),
+    }, [isCook, isDriver, loadData]),
     onOrderReady: useCallback((data: any) => {
+      if (isCook) { loadData(); return; }
       if (!isDriver) return;
-      // Commande prete — recharger les pending
       setPendingOrders((prev) => {
         if (prev.find((o: any) => o.id === data.orderId)) return prev;
         return [{ id: data.orderId, ...data, client: { name: data.clientName } }, ...prev];
@@ -132,7 +199,7 @@ export default function CommandesPage() {
       setNewAlert(true);
       playSound("new-order");
       setTimeout(() => setNewAlert(false), 5000);
-    }, [isDriver]),
+    }, [isCook, isDriver, loadData]),
     onAccepted: useCallback(() => {
       playSound("accepted");
       loadData();
@@ -145,6 +212,7 @@ export default function CommandesPage() {
     }, [loadData]),
   });
 
+  // === Actions livreur ===
   async function acceptOrder(orderId: string) {
     const res = await fetch("/api/deliveries", {
       method: "POST",
@@ -162,6 +230,25 @@ export default function CommandesPage() {
     }
   }
 
+  // === Actions cuisinier ===
+  async function cookAccept(orderId: string) {
+    setAccepting(orderId);
+    const res = await fetch(`/api/orders/${orderId}/cook-accept`, { method: "POST" });
+    if (res.ok) {
+      await loadData();
+      setTab("active");
+    }
+    setAccepting(null);
+  }
+
+  async function cookReady(orderId: string) {
+    setReadying(orderId);
+    const res = await fetch(`/api/orders/${orderId}/cook-ready`, { method: "POST" });
+    if (res.ok) await loadData();
+    setReadying(null);
+  }
+
+  // === Annulation ===
   async function cancelOrder(orderId: string) {
     const reason = cancelReason === "Autre" ? (customReason.trim() || "Autre") : cancelReason;
     if (!reason) return;
@@ -202,29 +289,41 @@ export default function CommandesPage() {
 
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>;
 
-  // Filtrage par onglet
-  // Pour les livreurs: "En attente" = commandes READY (cuisine terminee, en attente de livreur)
-  const pendingList = isDriver
-    ? pendingOrders
-    : orders.filter((o) => ["PENDING", "PREPARING", "READY"].includes(o.status));
+  // === Filtrage par onglet selon le role ===
+  const pendingList = isCook
+    ? orders.filter((o) => o.status === "PENDING")
+    : isDriver
+      ? pendingOrders
+      : orders.filter((o) => ["PENDING", "PREPARING", "READY"].includes(o.status));
 
-  const activeList = isDriver
-    ? orders.filter((o) => o.delivery && ["PICKING_UP", "DELIVERING"].includes(o.delivery.status))
-    : orders.filter((o) => ["PICKED_UP", "DELIVERING"].includes(o.status));
+  const activeList = isCook
+    ? orders.filter((o) => ["ACCEPTED", "PREPARING"].includes(o.status))
+    : isDriver
+      ? orders.filter((o) => o.delivery && ["PICKING_UP", "DELIVERING"].includes(o.delivery.status))
+      : orders.filter((o) => ["PICKED_UP", "DELIVERING"].includes(o.status));
 
-  const deliveredList = isDriver
-    ? orders.filter((o) => o.delivery?.status === "DELIVERED")
-    : orders.filter((o) => o.status === "DELIVERED");
+  const deliveredList = isCook
+    ? orders.filter((o) => o.status === "READY")
+    : isDriver
+      ? orders.filter((o) => o.delivery?.status === "DELIVERED")
+      : orders.filter((o) => o.status === "DELIVERED");
 
-  const tabItems: { key: Tab; label: string; count: number }[] = [
-    { key: "pending", label: isDriver ? "Pretes" : "En attente", count: pendingList.length },
-    { key: "active", label: "En cours", count: activeList.length },
-    { key: "delivered", label: "Livrees", count: deliveredList.length },
-  ];
+  // Labels dynamiques selon role
+  const tabItems: { key: Tab; label: string; count: number; icon?: any }[] = isCook
+    ? [
+        { key: "pending", label: "Nouvelles", count: pendingList.length, icon: Bell },
+        { key: "active", label: "En cuisine", count: activeList.length, icon: ChefHat },
+        { key: "delivered", label: "Pretes", count: deliveredList.length, icon: CheckCircle },
+      ]
+    : [
+        { key: "pending", label: isDriver ? "Pretes" : "En attente", count: pendingList.length },
+        { key: "active", label: "En cours", count: activeList.length },
+        { key: "delivered", label: "Livrees", count: deliveredList.length },
+      ];
 
   const currentList = tab === "pending" ? pendingList : tab === "active" ? activeList : deliveredList;
 
-  // Peut annuler? (client: PENDING ou 5min apres acceptation; livreur: tout sauf DELIVERED)
+  // Peut annuler?
   function canCancelOrder(order: any) {
     if (order.status === "DELIVERED" || order.status === "CANCELLED") return false;
     if (isDriver) return true;
@@ -236,19 +335,20 @@ export default function CommandesPage() {
 
   const reasonsList = isDriver ? driverCancelReasons : cancelReasons;
 
-  const emptyMessage = tab === "pending"
-    ? (isDriver ? "Aucune commande prete" : "Aucune commande en attente")
-    : tab === "active"
-      ? "Aucune commande en cours"
-      : "Aucune commande livree";
+  const emptyMessage = isCook
+    ? (tab === "pending" ? "Aucune nouvelle commande" : tab === "active" ? "Aucune commande en preparation" : "Aucune commande prete")
+    : tab === "pending"
+      ? (isDriver ? "Aucune commande prete" : "Aucune commande en attente")
+      : tab === "active"
+        ? "Aucune commande en cours"
+        : "Aucune commande livree";
+
+  const subtitle = isCook ? "Gerez les commandes a preparer" : isDriver ? "Gerez vos livraisons" : "Suivez vos commandes";
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <PageHeader
-        title="Commandes"
-        subtitle={isDriver ? "Gerez vos livraisons" : "Suivez vos commandes"}
-      >
+      <PageHeader title="Commandes" subtitle={subtitle}>
         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-600/20 rounded-full">
           <Wifi className="w-3 h-3 text-green-400 animate-pulse" />
           <span className="text-[10px] text-green-400 font-medium">En direct</span>
@@ -257,34 +357,155 @@ export default function CommandesPage() {
 
       {/* Alerte nouvelle commande */}
       {newAlert && (
-        <div className="bg-green-600/20 border border-green-500/30 rounded-xl p-3 flex items-center gap-3 animate-pulse">
-          <Bell className="w-5 h-5 text-green-400" />
-          <p className="text-sm text-green-400 font-medium">
-            {isDriver ? "Commande prete a livrer !" : "Nouvelle commande disponible !"}
+        <div className={cn(
+          "border rounded-xl p-3 flex items-center gap-3 animate-pulse",
+          isCook ? "bg-orange-600/20 border-orange-500/30" : "bg-green-600/20 border-green-500/30"
+        )}>
+          <Bell className={cn("w-5 h-5", isCook ? "text-orange-400" : "text-green-400")} />
+          <p className={cn("text-sm font-medium", isCook ? "text-orange-400" : "text-green-400")}>
+            {isCook ? "Nouvelle commande !" : isDriver ? "Commande prete a livrer !" : "Nouvelle commande disponible !"}
           </p>
         </div>
       )}
 
       {/* Onglets */}
-      <TabGroup
-        tabs={tabItems}
-        active={tab}
-        onChange={(key) => setTab(key as Tab)}
-      />
+      <TabGroup tabs={tabItems} active={tab} onChange={(key) => setTab(key as Tab)} />
 
       {/* Liste */}
       {currentList.length === 0 ? (
-        <EmptyState icon={ShoppingBag} message={emptyMessage} />
+        <EmptyState icon={isCook ? ChefHat : ShoppingBag} message={emptyMessage} />
       ) : (
-        <div className="space-y-3">
+        <div className={cn(
+          isCook ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" : "space-y-3"
+        )}>
           {currentList.map((order) => {
             const orderStatus = isDriver ? (order.delivery?.status || order.status) : order.status;
-
             const href = isDriver && order.delivery
               ? `/livraison/driver/${order.delivery.id}`
               : `/livraison/order/${order.id}`;
 
-            // Onglet "En attente/Pretes" pour livreur = bouton accepter
+            // === COOK: onglet Nouvelles — bouton Accepter ===
+            if (tab === "pending" && isCook) {
+              const maxCookTime = Math.max(...(order.items?.map((i: any) => i.product?.cookingTimeMin ?? 15) || [15]));
+              return (
+                <Card key={order.id}>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          Commande #{(order.id as string).slice(-6)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {order.client?.name || order.guestName || "Client"} - {new Date(order.createdAt).toLocaleString("fr-FR")}
+                        </p>
+                      </div>
+                      <StatusBadge status="PENDING" type="order" />
+                    </div>
+
+                    <div className="text-xs text-gray-400 space-y-0.5">
+                      {order.items?.map((item: any) => (
+                        <p key={item.id || item.productId}>
+                          {item.quantity}x {item.product?.name || item.name}
+                          {item.product?.cookingTimeMin && (
+                            <span className="text-gray-600 ml-1">({item.product.cookingTimeMin} min)</span>
+                          )}
+                        </p>
+                      ))}
+                    </div>
+
+                    {order.notes && (
+                      <p className="text-xs text-yellow-400/80 italic">Note: {order.notes}</p>
+                    )}
+
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span className="flex items-center gap-1"><Timer className="w-3 h-3" /> ~{maxCookTime} min</span>
+                      <span className="font-bold text-orange-400">{order.totalAmount?.toLocaleString()} FCFA</span>
+                    </div>
+
+                    <button
+                      onClick={() => cookAccept(order.id)}
+                      disabled={accepting === order.id}
+                      className="w-full sm:w-auto py-2.5 px-6 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-600/50 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {accepting === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChefHat className="w-4 h-4" />}
+                      Accepter et preparer
+                    </button>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            // === COOK: onglet En cuisine — countdown + bouton Pret ===
+            if (tab === "active" && isCook) {
+              const maxCookTime = Math.max(...(order.items?.map((i: any) => i.product?.cookingTimeMin ?? 15) || [15]));
+              return (
+                <Card key={order.id}>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          Commande #{(order.id as string).slice(-6)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {order.client?.name || order.guestName || "Client"}
+                        </p>
+                      </div>
+                      <StatusBadge status="PREPARING" type="order" />
+                    </div>
+
+                    <div className="text-xs text-gray-400 space-y-0.5">
+                      {order.items?.map((item: any) => (
+                        <p key={item.id || item.productId}>{item.quantity}x {item.product?.name || item.name}</p>
+                      ))}
+                    </div>
+
+                    {order.cookAcceptedAt && (
+                      <CookingCountdown cookAcceptedAt={order.cookAcceptedAt} cookingTimeMin={maxCookTime} />
+                    )}
+
+                    <button
+                      onClick={() => cookReady(order.id)}
+                      disabled={readying === order.id}
+                      className="w-full sm:w-auto py-2.5 px-6 bg-green-600 hover:bg-green-700 disabled:bg-green-600/50 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+                    >
+                      {readying === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      Pret !
+                    </button>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            // === COOK: onglet Pretes ===
+            if (tab === "delivered" && isCook) {
+              return (
+                <Card key={order.id}>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          Commande #{(order.id as string).slice(-6)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {order.client?.name || order.guestName || "Client"} - Prete a {order.cookReadyAt ? new Date(order.cookReadyAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""}
+                        </p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/20 text-cyan-400">
+                        En attente livreur
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 space-y-0.5">
+                      {order.items?.map((item: any) => (
+                        <p key={item.id || item.productId}>{item.quantity}x {item.product?.name || item.name}</p>
+                      ))}
+                    </div>
+                    <p className="text-sm font-bold text-orange-400">{order.totalAmount?.toLocaleString()} FCFA</p>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            // === DRIVER: onglet Pretes — bouton accepter livraison ===
             if (tab === "pending" && isDriver) {
               return (
                 <Card key={order.id}>
@@ -322,6 +543,7 @@ export default function CommandesPage() {
               );
             }
 
+            // === Default: CLIENT / DRIVER active+delivered ===
             return (
               <Card key={order.id} hover>
                 <CardContent>
@@ -376,7 +598,6 @@ export default function CommandesPage() {
                         )} />
                       </button>
 
-                      {/* Formulaire d'annulation inline */}
                       {cancelFormId === order.id && (
                         <div className="mt-2 p-3 bg-red-950/30 border border-red-500/20 rounded-lg space-y-3 animate-in slide-in-from-top-2 duration-200">
                           <p className="text-xs font-medium text-red-300">Raison de l&apos;annulation</p>
