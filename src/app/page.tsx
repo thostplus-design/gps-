@@ -12,6 +12,8 @@ import {
   ArrowDown, Phone, User, Timer, Droplets, ChefHat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const AddressPickerMap = dynamic(() => import("@/components/map/address-picker-map"), { ssr: false });
 
@@ -202,13 +204,15 @@ export default function LandingPage() {
           {advantages.map((a) => {
             const Icon = a.icon;
             return (
-              <div key={a.title} className="bg-gray-900/80 border border-gray-800/50 rounded-2xl p-4 sm:p-5 hover:border-gray-700 transition-colors">
-                <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3", a.color)}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="text-sm font-semibold text-white">{a.title}</h3>
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{a.desc}</p>
-              </div>
+              <Card key={a.title} className="bg-gray-900/80 border-gray-800/50 rounded-2xl" hover>
+                <CardContent className="p-4 sm:p-5">
+                  <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3", a.color)}>
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-white">{a.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{a.desc}</p>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -234,16 +238,13 @@ export default function LandingPage() {
             <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
           </div>
         ) : filteredMeals.length === 0 ? (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
-            <UtensilsCrossed className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-            <p className="text-gray-400">Aucun plat trouve</p>
-          </div>
+          <EmptyState icon={UtensilsCrossed} message="Aucun plat trouve" />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {filteredMeals.map((p) => {
               const count = getCartCount(p.id);
               return (
-                <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors">
+                <Card key={p.id} className="overflow-hidden group hover:border-gray-700">
                   <div className="relative h-32 sm:h-36 flex items-center justify-center bg-orange-600/20">
                     {p.image ? (
                       <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
@@ -255,7 +256,7 @@ export default function LandingPage() {
                       <span className="text-[9px] text-orange-300 font-medium">~{p.cookingTimeMin} min</span>
                     </div>
                   </div>
-                  <div className="p-3">
+                  <CardContent className="p-3">
                     <h3 className="text-sm font-semibold text-white truncate">{p.name}</h3>
                     {p.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>}
                     <div className="flex items-center justify-between mt-2">
@@ -274,8 +275,8 @@ export default function LandingPage() {
                         </button>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -291,7 +292,7 @@ export default function LandingPage() {
               {extras.map((p) => {
                 const count = getCartCount(p.id);
                 return (
-                  <div key={p.id} className="flex-shrink-0 w-36 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors">
+                  <Card key={p.id} className="overflow-hidden group hover:border-gray-700 flex-shrink-0 w-36">
                     <div className="h-24 flex items-center justify-center bg-orange-600/10">
                       {p.image ? (
                         <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
@@ -299,7 +300,7 @@ export default function LandingPage() {
                         <Droplets className="w-8 h-8 opacity-40 text-orange-400" />
                       )}
                     </div>
-                    <div className="p-2">
+                    <CardContent className="p-2">
                       <h4 className="text-xs font-semibold text-white truncate">{p.name}</h4>
                       <div className="flex items-center justify-between mt-1.5">
                         <p className="text-xs font-bold text-orange-400">{p.price.toLocaleString()} F</p>
@@ -317,8 +318,8 @@ export default function LandingPage() {
                           </button>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
@@ -339,89 +340,91 @@ export default function LandingPage() {
               <span className="text-sm font-bold">{total.toLocaleString()} FCFA</span>
             </button>
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3 shadow-xl max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <p className="text-white font-semibold text-sm">Finaliser la commande</p>
-                <button onClick={() => setShowOrder(false)}><X className="w-5 h-5 text-gray-400" /></button>
-              </div>
+            <Card className="rounded-2xl shadow-xl max-h-[85vh] overflow-y-auto">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-white font-semibold text-sm">Finaliser la commande</p>
+                  <button onClick={() => setShowOrder(false)}><X className="w-5 h-5 text-gray-400" /></button>
+                </div>
 
-              {/* Resume panier */}
-              <div className="max-h-28 overflow-y-auto space-y-1">
-                {cart.map((i) => (
-                  <div key={i.product.id} className="flex justify-between text-xs text-gray-400">
-                    <span>{i.quantity}x {i.product.name}</span>
-                    <span>{(i.product.price * i.quantity).toLocaleString()} FCFA</span>
+                {/* Resume panier */}
+                <div className="max-h-28 overflow-y-auto space-y-1">
+                  {cart.map((i) => (
+                    <div key={i.product.id} className="flex justify-between text-xs text-gray-400">
+                      <span>{i.quantity}x {i.product.name}</span>
+                      <span>{(i.product.price * i.quantity).toLocaleString()} FCFA</span>
+                    </div>
+                  ))}
+                </div>
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Frais de livraison</span><span>{deliveryFee.toLocaleString()} FCFA</span>
                   </div>
-                ))}
-              </div>
-              {deliveryFee > 0 && (
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>Frais de livraison</span><span>{deliveryFee.toLocaleString()} FCFA</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm font-bold text-white border-t border-gray-800 pt-2">
-                <span>Total</span><span>{total.toLocaleString()} FCFA</span>
-              </div>
-
-              {/* Infos client */}
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Votre nom *</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nom complet"
-                      className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Telephone *</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <input type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+229 00 00 00 00"
-                      className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-white border-t border-gray-800 pt-2">
+                  <span>Total</span><span>{total.toLocaleString()} FCFA</span>
                 </div>
 
-                {/* Carte adresse */}
-                <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Adresse de livraison *</label>
-                  <AddressPickerMap onSelect={handleAddressSelect} />
-                </div>
-
-                <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note pour la commande (optionnel)"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm resize-none focus:outline-none focus:border-orange-500" />
-              </div>
-
-              {/* Choix de paiement */}
-              {(canPayOnline || canPayCash) && (
+                {/* Infos client */}
                 <div className="space-y-2">
-                  <label className="text-xs text-gray-500 block">Mode de paiement</label>
-                  <div className="flex gap-2">
-                    {canPayCash && (
-                      <button onClick={() => setPaymentChoice("CASH")}
-                        className={cn("flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors border",
-                          paymentChoice === "CASH" ? "bg-green-600/20 border-green-500/50 text-green-400" : "bg-gray-800 border-gray-700 text-gray-400")}>
-                        A la livraison
-                      </button>
-                    )}
-                    {canPayOnline && (
-                      <button onClick={() => setPaymentChoice("ONLINE")}
-                        className={cn("flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors border flex items-center justify-center gap-1.5",
-                          paymentChoice === "ONLINE" ? "bg-orange-600/20 border-orange-500/50 text-orange-400" : "bg-gray-800 border-gray-700 text-gray-400")}>
-                        <CreditCard className="w-4 h-4" /> Payer en ligne
-                      </button>
-                    )}
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Votre nom *</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                      <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Nom complet"
+                        className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
+                    </div>
                   </div>
-                </div>
-              )}
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Telephone *</label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                      <input type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} placeholder="+229 00 00 00 00"
+                        className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
+                    </div>
+                  </div>
 
-              <button onClick={placeOrder}
-                disabled={ordering || !guestName || !guestPhone || !address || !addressLat || !addressLng}
-                className="w-full py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
-                {ordering ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
-                {paymentChoice === "ONLINE" ? "Payer en ligne" : "Commander"} - {total.toLocaleString()} FCFA
-              </button>
-            </div>
+                  {/* Carte adresse */}
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Adresse de livraison *</label>
+                    <AddressPickerMap onSelect={handleAddressSelect} />
+                  </div>
+
+                  <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note pour la commande (optionnel)"
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm resize-none focus:outline-none focus:border-orange-500" />
+                </div>
+
+                {/* Choix de paiement */}
+                {(canPayOnline || canPayCash) && (
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-500 block">Mode de paiement</label>
+                    <div className="flex gap-2">
+                      {canPayCash && (
+                        <button onClick={() => setPaymentChoice("CASH")}
+                          className={cn("flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors border",
+                            paymentChoice === "CASH" ? "bg-green-600/20 border-green-500/50 text-green-400" : "bg-gray-800 border-gray-700 text-gray-400")}>
+                          A la livraison
+                        </button>
+                      )}
+                      {canPayOnline && (
+                        <button onClick={() => setPaymentChoice("ONLINE")}
+                          className={cn("flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors border flex items-center justify-center gap-1.5",
+                            paymentChoice === "ONLINE" ? "bg-orange-600/20 border-orange-500/50 text-orange-400" : "bg-gray-800 border-gray-700 text-gray-400")}>
+                          <CreditCard className="w-4 h-4" /> Payer en ligne
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={placeOrder}
+                  disabled={ordering || !guestName || !guestPhone || !address || !addressLat || !addressLng}
+                  className="w-full py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+                  {ordering ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
+                  {paymentChoice === "ONLINE" ? "Payer en ligne" : "Commander"} - {total.toLocaleString()} FCFA
+                </button>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}

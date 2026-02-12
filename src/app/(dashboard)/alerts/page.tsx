@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { Bell, Check, CheckCheck, Trash2, Filter, Loader2, AlertTriangle, Info, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface Alert {
   id: string;
@@ -76,13 +79,10 @@ export default function AlertsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Alertes</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {alerts.length} alerte(s) • {unreadCount} non lue(s)
-          </p>
-        </div>
+      <PageHeader
+        title="Alertes"
+        subtitle={`${alerts.length} alerte(s) • ${unreadCount} non lue(s)`}
+      >
         {unreadCount > 0 && (
           <button
             onClick={markAllRead}
@@ -91,7 +91,7 @@ export default function AlertsPage() {
             <CheckCheck className="w-4 h-4" /> Tout marquer comme lu
           </button>
         )}
-      </div>
+      </PageHeader>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {[
@@ -121,70 +121,68 @@ export default function AlertsPage() {
           <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
         </div>
       ) : alerts.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
-          <Bell className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-          <p className="text-gray-400">Aucune alerte</p>
-        </div>
+        <EmptyState icon={Bell} message="Aucune alerte" />
       ) : (
         <div className="space-y-2">
           {alerts.map((alert) => {
             const sev = severityConfig[alert.severity] || severityConfig.INFO;
             const Icon = sev.icon;
             return (
-              <div
+              <Card
                 key={alert.id}
                 className={cn(
-                  "bg-gray-900 border rounded-xl p-4 transition-colors",
                   alert.isRead ? "border-gray-800" : "border-gray-700 bg-gray-900/80"
                 )}
               >
-                <div className="flex items-start gap-3">
-                  <div className={cn("p-2 rounded-lg shrink-0", sev.bg)}>
-                    <Icon className={cn("w-4 h-4", sev.color)} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className={cn("text-sm font-medium", alert.isRead ? "text-gray-300" : "text-white")}>
-                          {alert.title}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {typeLabels[alert.type] || alert.type}
-                          {alert.device && ` • ${alert.device.name}`}
-                          {alert.geofence && ` • ${alert.geofence.name}`}
-                        </p>
-                      </div>
-                      <span className="text-xs text-gray-600 whitespace-nowrap">
-                        {new Date(alert.createdAt).toLocaleString("fr-FR", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+                <CardContent>
+                  <div className="flex items-start gap-3">
+                    <div className={cn("p-2 rounded-lg shrink-0", sev.bg)}>
+                      <Icon className={cn("w-4 h-4", sev.color)} />
                     </div>
-                    <p className="text-sm text-gray-400 mt-1">{alert.message}</p>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {!alert.isRead && (
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className={cn("text-sm font-medium", alert.isRead ? "text-gray-300" : "text-white")}>
+                            {alert.title}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {typeLabels[alert.type] || alert.type}
+                            {alert.device && ` • ${alert.device.name}`}
+                            {alert.geofence && ` • ${alert.geofence.name}`}
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-600 whitespace-nowrap">
+                          {new Date(alert.createdAt).toLocaleString("fr-FR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">{alert.message}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!alert.isRead && (
+                        <button
+                          onClick={() => markAsRead(alert.id)}
+                          className="p-1.5 text-gray-600 hover:text-green-400 transition-colors"
+                          title="Marquer comme lu"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
-                        onClick={() => markAsRead(alert.id)}
-                        className="p-1.5 text-gray-600 hover:text-green-400 transition-colors"
-                        title="Marquer comme lu"
+                        onClick={() => deleteAlert(alert.id)}
+                        className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"
+                        title="Supprimer"
                       >
-                        <Check className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
-                    <button
-                      onClick={() => deleteAlert(alert.id)}
-                      className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

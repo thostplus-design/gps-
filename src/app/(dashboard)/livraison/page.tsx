@@ -8,6 +8,9 @@ import {
   Plus, Minus, Search, X, Timer, Droplets, CreditCard, ChefHat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 const AddressPickerMap = dynamic(() => import("@/components/map/address-picker-map"), { ssr: false });
 
@@ -147,12 +150,12 @@ export default function CommanderPage() {
 
   return (
     <div className="space-y-4 pb-24">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-          <ChefHat className="w-6 h-6 text-orange-400" /> Commander
-        </h1>
-        <p className="text-gray-400 text-sm mt-1">Choisissez vos repas et passez commande</p>
-      </div>
+      <PageHeader
+        title="Commander"
+        subtitle="Choisissez vos repas et passez commande"
+      >
+        <ChefHat className="w-6 h-6 text-orange-400" />
+      </PageHeader>
 
       {/* Recherche */}
       <div className="relative">
@@ -164,16 +167,13 @@ export default function CommanderPage() {
 
       {/* Grille repas */}
       {filteredMeals.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
-          <UtensilsCrossed className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-          <p className="text-gray-400">Aucun plat trouve</p>
-        </div>
+        <EmptyState icon={UtensilsCrossed} message="Aucun plat trouve" />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {filteredMeals.map((p) => {
             const count = getCartCount(p.id);
             return (
-              <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden group hover:border-gray-700 transition-colors">
+              <Card key={p.id} className="overflow-hidden" hover>
                 <div className="relative h-32 sm:h-36 flex items-center justify-center bg-orange-600/20">
                   {p.image ? (
                     <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
@@ -185,7 +185,7 @@ export default function CommanderPage() {
                     <span className="text-[9px] text-orange-300 font-medium">~{p.cookingTimeMin} min</span>
                   </div>
                 </div>
-                <div className="p-3">
+                <CardContent className="p-3">
                   <h3 className="text-sm font-semibold text-white truncate">{p.name}</h3>
                   {p.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>}
                   <div className="flex items-center justify-between mt-2">
@@ -206,8 +206,8 @@ export default function CommanderPage() {
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -223,7 +223,7 @@ export default function CommanderPage() {
             {extras.map((p) => {
               const count = getCartCount(p.id);
               return (
-                <div key={p.id} className="flex-shrink-0 w-36 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden hover:border-gray-700 transition-colors">
+                <Card key={p.id} className="flex-shrink-0 w-36 overflow-hidden" hover>
                   <div className="h-24 flex items-center justify-center bg-orange-600/10">
                     {p.image ? (
                       <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
@@ -231,7 +231,7 @@ export default function CommanderPage() {
                       <Droplets className="w-8 h-8 opacity-40 text-orange-400" />
                     )}
                   </div>
-                  <div className="p-2">
+                  <CardContent className="p-2">
                     <h4 className="text-xs font-semibold text-white truncate">{p.name}</h4>
                     <div className="flex items-center justify-between mt-1.5">
                       <p className="text-xs font-bold text-orange-400">{p.price.toLocaleString()} F</p>
@@ -249,8 +249,8 @@ export default function CommanderPage() {
                         </button>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -270,7 +270,7 @@ export default function CommanderPage() {
               <span className="text-sm font-bold">{total.toLocaleString()} FCFA</span>
             </button>
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3 shadow-xl max-h-[85vh] overflow-y-auto">
+            <Card className="rounded-2xl p-4 space-y-3 shadow-xl max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <p className="text-white font-semibold text-sm">Confirmer la commande</p>
                 <button onClick={() => setShowOrder(false)}><X className="w-5 h-5 text-gray-400" /></button>
@@ -329,7 +329,7 @@ export default function CommanderPage() {
                 {ordering ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />}
                 {paymentChoice === "ONLINE" ? "Payer en ligne" : "Commander"} - {total.toLocaleString()} FCFA
               </button>
-            </div>
+            </Card>
           )}
         </div>
       )}

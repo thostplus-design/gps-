@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { Loader2, Users, Shield, Eye, Truck, ShoppingBag, UserCheck, UserX, ChefHat } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 
 const roleConfig: Record<string, { label: string; color: string; icon: any }> = {
   ADMIN: { label: "Admin", color: "bg-red-500/20 text-red-400", icon: Shield },
@@ -44,66 +47,71 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white">Utilisateurs</h1>
-        <p className="text-gray-400 text-sm mt-1">{users.length} utilisateur{users.length > 1 ? "s" : ""} inscrits</p>
-      </div>
-
-      {/* Filtres par role */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        <button onClick={() => setFilter("all")}
-          className={cn("px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-colors",
-            filter === "all" ? "bg-orange-600 text-white" : "bg-gray-900 text-gray-400")}>
-          Tous ({users.length})
-        </button>
-        {Object.entries(roleConfig).map(([key, cfg]) => (
-          <button key={key} onClick={() => setFilter(key)}
+      <PageHeader
+        title="Utilisateurs"
+        subtitle={`${users.length} utilisateur${users.length > 1 ? "s" : ""} inscrits`}
+      >
+        {/* Filtres par role */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <button onClick={() => setFilter("all")}
             className={cn("px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-colors",
-              filter === key ? "bg-orange-600 text-white" : "bg-gray-900 text-gray-400")}>
-            {cfg.label} ({roleCounts[key] || 0})
+              filter === "all" ? "bg-orange-600 text-white" : "bg-gray-900 text-gray-400")}>
+            Tous ({users.length})
           </button>
-        ))}
-      </div>
+          {Object.entries(roleConfig).map(([key, cfg]) => (
+            <button key={key} onClick={() => setFilter(key)}
+              className={cn("px-4 py-2 rounded-xl text-sm whitespace-nowrap transition-colors",
+                filter === key ? "bg-orange-600 text-white" : "bg-gray-900 text-gray-400")}>
+              {cfg.label} ({roleCounts[key] || 0})
+            </button>
+          ))}
+        </div>
+      </PageHeader>
 
       {/* Liste */}
       <div className="space-y-2">
+        {filtered.length === 0 && (
+          <EmptyState icon={Users} message="Aucun utilisateur trouvé" />
+        )}
         {filtered.map((user) => {
           const rc = roleConfig[user.role] || roleConfig.VIEWER;
           const RoleIcon = rc.icon;
           return (
-            <div key={user.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shrink-0">
-                    <span className="text-sm font-bold text-gray-400">
-                      {user.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                    </span>
+            <Card key={user.id}>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-gray-400">
+                        {user.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <select value={user.role}
+                      onChange={(e) => updateUser(user.id, { role: e.target.value })}
+                      className="px-2 py-1 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500">
+                      {Object.entries(roleConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                    <button onClick={() => updateUser(user.id, { isActive: !user.isActive })}
+                      className={cn("p-2 rounded-lg transition-colors",
+                        user.isActive ? "text-green-400 hover:bg-green-500/10" : "text-red-400 hover:bg-red-500/10")}>
+                      {user.isActive ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <select value={user.role}
-                    onChange={(e) => updateUser(user.id, { role: e.target.value })}
-                    className="px-2 py-1 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500">
-                    {Object.entries(roleConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                  <button onClick={() => updateUser(user.id, { isActive: !user.isActive })}
-                    className={cn("p-2 rounded-lg transition-colors",
-                      user.isActive ? "text-green-400 hover:bg-green-500/10" : "text-red-400 hover:bg-red-500/10")}>
-                    {user.isActive ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
-                  </button>
+                <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+                  <span>{user._count?.clientOrders || 0} commandes</span>
+                  <span>{user._count?.driverDeliveries || 0} livraisons</span>
+                  {user.role === "COOK" && <span className="text-amber-400/70">{user._count?.cookOrders || 0} plats prepares</span>}
+                  <span>Inscrit le {new Date(user.createdAt).toLocaleDateString("fr-FR")}</span>
                 </div>
-              </div>
-              <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
-                <span>{user._count?.clientOrders || 0} commandes</span>
-                <span>{user._count?.driverDeliveries || 0} livraisons</span>
-                {user.role === "COOK" && <span className="text-amber-400/70">{user._count?.cookOrders || 0} plats prepares</span>}
-                <span>Inscrit le {new Date(user.createdAt).toLocaleDateString("fr-FR")}</span>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           );
         })}
       </div>
