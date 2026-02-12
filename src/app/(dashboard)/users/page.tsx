@@ -45,6 +45,18 @@ export default function UsersPage() {
     }
   }
 
+  function confirmToggleActive(user: any) {
+    if (user.isActive) {
+      toast.warning(`Désactiver "${user.name}" ?`, {
+        description: "L'utilisateur ne pourra plus se connecter",
+        action: { label: "Désactiver", onClick: () => updateUser(user.id, { isActive: false }) },
+        cancel: { label: "Annuler", onClick: () => {} },
+      });
+    } else {
+      updateUser(user.id, { isActive: true });
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>;
 
   const filtered = filter === "all" ? users : users.filter((u) => u.role === filter);
@@ -102,7 +114,7 @@ export default function UsersPage() {
                       className="px-2 py-1 bg-gray-800 border border-gray-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500">
                       {Object.entries(roleConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
-                    <button onClick={() => updateUser(user.id, { isActive: !user.isActive })}
+                    <button onClick={() => confirmToggleActive(user)}
                       className={cn("p-2 rounded-lg transition-colors",
                         user.isActive ? "text-green-400 hover:bg-green-500/10" : "text-red-400 hover:bg-red-500/10")}>
                       {user.isActive ? <UserCheck className="w-4 h-4" /> : <UserX className="w-4 h-4" />}

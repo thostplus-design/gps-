@@ -234,6 +234,14 @@ export default function ProductsPage() {
     }
   }
 
+  function confirmDeleteProduct(id: string, name: string) {
+    toast.warning(`Supprimer "${name}" ?`, {
+      description: "Cette action est irréversible",
+      action: { label: "Supprimer", onClick: () => deleteProduct(id) },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
+  }
+
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>;
 
   const tabItems: { key: Tab; label: string }[] = [
@@ -340,7 +348,7 @@ export default function ProductsPage() {
                             className="p-2 text-gray-500 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors">
                             <Edit2 className="w-4 h-4" />
                           </button>
-                          <button onClick={() => deleteProduct(p.id)}
+                          <button onClick={() => confirmDeleteProduct(p.id, p.name)}
                             className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
