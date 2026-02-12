@@ -27,7 +27,7 @@ const navItems = [
 ];
 
 const adminItems = [
-  { label: "Produits", href: "/products", icon: Package },
+  { label: "Repas", href: "/products", icon: Package },
   { label: "Utilisateurs", href: "/users", icon: Users },
   { label: "Livreurs", href: "/drivers", icon: Truck },
 ];

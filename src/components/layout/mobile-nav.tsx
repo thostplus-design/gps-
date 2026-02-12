@@ -36,7 +36,7 @@ const mobileItems: Record<string, { label: string; href: string; icon: any }[]> 
   DEFAULT: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Commandes", href: "/livraison/order", icon: ClipboardList },
-    { label: "Produits", href: "/products", icon: Package },
+    { label: "Repas", href: "/products", icon: Package },
   ],
 };
 
