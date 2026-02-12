@@ -23,6 +23,12 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Non autorise" }, { status: 401 });
 
   const { id, role, isActive } = await request.json();
+
+  // Empêcher un admin de désactiver son propre compte
+  if (id === (session.user as any).id && isActive === false) {
+    return NextResponse.json({ error: "Vous ne pouvez pas désactiver votre propre compte" }, { status: 400 });
+  }
+
   const user = await prisma.user.update({
     where: { id },
     data: { ...(role && { role }), ...(typeof isActive === "boolean" && { isActive }) },
