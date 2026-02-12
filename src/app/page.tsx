@@ -1,16 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   ShoppingBag, Zap, MapPin, CreditCard, UserCheck,
   Search, Plus, Minus, X, Loader2,
   ClipboardList, Map, LogIn,
-  UtensilsCrossed, ShoppingCart,
+  UtensilsCrossed,
   ArrowDown, Phone, User, Timer, Droplets, ChefHat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const AddressPickerMap = dynamic(() => import("@/components/map/address-picker-map"), { ssr: false });
 
 interface Product {
   id: string;
@@ -56,8 +59,8 @@ export default function LandingPage() {
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [address, setAddress] = useState("");
-  const [addressLat, setAddressLat] = useState("");
-  const [addressLng, setAddressLng] = useState("");
+  const [addressLat, setAddressLat] = useState(0);
+  const [addressLng, setAddressLng] = useState(0);
   const [note, setNote] = useState("");
   const [paymentChoice, setPaymentChoice] = useState<"CASH" | "ONLINE">("CASH");
   const [ordering, setOrdering] = useState(false);
@@ -73,7 +76,6 @@ export default function LandingPage() {
     });
   }, []);
 
-  // Separer repas et extras
   const meals = products.filter((p) => !p.isExtra);
   const extras = products.filter((p) => p.isExtra);
 
@@ -110,14 +112,11 @@ export default function LandingPage() {
   const canPayOnline = settings?.defaultPaymentMethod === "ONLINE" || settings?.defaultPaymentMethod === "BOTH";
   const canPayCash = settings?.defaultPaymentMethod === "CASH" || settings?.defaultPaymentMethod === "BOTH" || !settings?.defaultPaymentMethod;
 
-  function useMyPosition() {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setAddressLat(String(pos.coords.latitude));
-      setAddressLng(String(pos.coords.longitude));
-      setAddress(`${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`);
-    }, () => {}, { enableHighAccuracy: true });
-  }
+  const handleAddressSelect = useCallback((lat: number, lng: number, addr: string) => {
+    setAddressLat(lat);
+    setAddressLng(lng);
+    setAddress(addr);
+  }, []);
 
   async function placeOrder() {
     if (!guestName || !guestPhone || !address || !addressLat || !addressLng) return;
@@ -129,8 +128,8 @@ export default function LandingPage() {
         body: JSON.stringify({
           items: cart.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
           deliveryAddress: address,
-          deliveryLat: parseFloat(addressLat),
-          deliveryLng: parseFloat(addressLng),
+          deliveryLat: addressLat,
+          deliveryLng: addressLng,
           note,
           guestName,
           guestPhone,
@@ -139,8 +138,6 @@ export default function LandingPage() {
       });
       if (res.ok) {
         const order = await res.json();
-
-        // Si paiement en ligne, rediriger vers FedaPay
         if (paymentChoice === "ONLINE") {
           const payRes = await fetch("/api/payments/create", {
             method: "POST",
@@ -149,13 +146,9 @@ export default function LandingPage() {
           });
           if (payRes.ok) {
             const { paymentUrl } = await payRes.json();
-            if (paymentUrl) {
-              window.location.href = paymentUrl;
-              return;
-            }
+            if (paymentUrl) { window.location.href = paymentUrl; return; }
           }
         }
-
         setCart([]);
         setShowOrder(false);
         router.push(`/track/${order.id}`);
@@ -288,7 +281,7 @@ export default function LandingPage() {
           </div>
         )}
 
-        {/* Section Extras (boissons, eau, jus) */}
+        {/* Section Extras */}
         {extras.length > 0 && (
           <div className="mt-8">
             <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
@@ -346,7 +339,7 @@ export default function LandingPage() {
               <span className="text-sm font-bold">{total.toLocaleString()} FCFA</span>
             </button>
           ) : (
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3 shadow-xl max-h-[80vh] overflow-y-auto">
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 space-y-3 shadow-xl max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <p className="text-white font-semibold text-sm">Finaliser la commande</p>
                 <button onClick={() => setShowOrder(false)}><X className="w-5 h-5 text-gray-400" /></button>
@@ -363,8 +356,7 @@ export default function LandingPage() {
               </div>
               {deliveryFee > 0 && (
                 <div className="flex justify-between text-xs text-gray-500">
-                  <span>Frais de livraison</span>
-                  <span>{deliveryFee.toLocaleString()} FCFA</span>
+                  <span>Frais de livraison</span><span>{deliveryFee.toLocaleString()} FCFA</span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-bold text-white border-t border-gray-800 pt-2">
@@ -389,22 +381,13 @@ export default function LandingPage() {
                       className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
                   </div>
                 </div>
+
+                {/* Carte adresse */}
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">Adresse de livraison *</label>
-                  <div className="flex gap-2">
-                    <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Adresse..."
-                      className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                    <button onClick={useMyPosition} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-orange-400" title="Ma position">
-                      <MapPin className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <AddressPickerMap onSelect={handleAddressSelect} />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="number" step="any" value={addressLat} onChange={(e) => setAddressLat(e.target.value)} placeholder="Latitude"
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-orange-500" />
-                  <input type="number" step="any" value={addressLng} onChange={(e) => setAddressLng(e.target.value)} placeholder="Longitude"
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-xs focus:outline-none focus:border-orange-500" />
-                </div>
+
                 <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Note pour la commande (optionnel)"
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm resize-none focus:outline-none focus:border-orange-500" />
               </div>
