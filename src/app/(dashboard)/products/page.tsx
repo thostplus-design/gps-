@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Loader2, Package, Plus, Trash2, ShoppingBag, TrendingUp,
   Clock, CheckCircle, Truck, XCircle, Store,
   UtensilsCrossed, ShoppingCart, Pill, Smartphone,
   Timer, Droplets, CreditCard, Edit2, X, Save,
+  ImageIcon, Link2, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -14,9 +15,11 @@ import { StatCardCentered, StatCardBadge } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TabGroup } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/ui/page-header";
+import { Dialog } from "@/components/ui/dialog";
 
 type Tab = "products" | "orders" | "revenue";
 type ProductFilter = "all" | "meals" | "extras";
+type ImageMode = "link" | "upload";
 
 const categoryConfig: Record<string, { label: string; icon: any }> = {
   RESTAURANT: { label: "Restaurant", icon: UtensilsCrossed },
@@ -43,6 +46,8 @@ const paymentMethodLabels: Record<string, string> = {
   BOTH: "Les deux",
 };
 
+const inputClass = "px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500";
+
 export default function ProductsPage() {
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<any[]>([]);
@@ -51,13 +56,17 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [productFilter, setProductFilter] = useState<ProductFilter>("all");
 
-  // Formulaire ajout
+  // Dialog ajout
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     name: "", description: "", price: "", category: "RESTAURANT",
     shopName: "", image: "", cookingTimeMin: "15", isExtra: false, paymentMethod: "BOTH",
   });
   const [saving, setSaving] = useState(false);
+  const [imageMode, setImageMode] = useState<ImageMode>("upload");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Edition inline
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -76,6 +85,51 @@ export default function ProductsPage() {
     });
   }, []);
 
+  function resetForm() {
+    setForm({ name: "", description: "", price: "", category: "RESTAURANT", shopName: "", image: "", cookingTimeMin: "15", isExtra: false, paymentMethod: "BOTH" });
+    setImagePreview(null);
+    setImageMode("upload");
+  }
+
+  async function handleFileUpload(file: File) {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (res.ok) {
+        const { url } = await res.json();
+        setForm((prev) => ({ ...prev, image: url }));
+        setImagePreview(url);
+        toast.success("Image importée");
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error || "Erreur lors de l'import");
+      }
+    } catch {
+      toast.error("Erreur réseau");
+    }
+    setUploading(false);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Preview locale immédiate
+    const localUrl = URL.createObjectURL(file);
+    setImagePreview(localUrl);
+    handleFileUpload(file);
+  }
+
+  function handleImageUrlChange(url: string) {
+    setForm((prev) => ({ ...prev, image: url }));
+    if (url && (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/"))) {
+      setImagePreview(url);
+    } else {
+      setImagePreview(null);
+    }
+  }
+
   async function addProduct() {
     if (!form.name || !form.price || !form.shopName) return;
     setSaving(true);
@@ -92,11 +146,11 @@ export default function ProductsPage() {
     if (res.ok) {
       const p = await res.json();
       setProducts((prev) => [p, ...prev]);
-      setForm({ name: "", description: "", price: "", category: "RESTAURANT", shopName: "", image: "", cookingTimeMin: "15", isExtra: false, paymentMethod: "BOTH" });
+      resetForm();
       setShowAdd(false);
-      toast.success("Produit ajouté");
+      toast.success("Repas ajouté");
     } else {
-      toast.error("Erreur lors de l'ajout du produit");
+      toast.error("Erreur lors de l'ajout");
     }
     setSaving(false);
   }
@@ -119,7 +173,7 @@ export default function ProductsPage() {
       setProducts((prev) => prev.map((p) => p.id === id ? updated : p));
       setEditingId(null);
       setEditForm(null);
-      toast.success("Produit modifié");
+      toast.success("Repas modifié");
     } else {
       toast.error("Erreur lors de la modification");
     }
@@ -129,7 +183,7 @@ export default function ProductsPage() {
     const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
     if (res.ok) {
       setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Produit supprimé");
+      toast.success("Repas supprimé");
     } else {
       toast.error("Erreur lors de la suppression");
     }
@@ -138,7 +192,7 @@ export default function ProductsPage() {
   if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-orange-500 animate-spin" /></div>;
 
   const tabItems: { key: Tab; label: string }[] = [
-    { key: "products", label: "Produits" },
+    { key: "products", label: "Repas" },
     { key: "orders", label: "Commandes" },
     { key: "revenue", label: "Recettes" },
   ];
@@ -157,9 +211,9 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Produits" subtitle="Gerez vos produits, commandes et recettes">
+      <PageHeader title="Repas" subtitle="Gérez vos repas, commandes et recettes">
         {tab === "products" && (
-          <button onClick={() => setShowAdd(!showAdd)}
+          <button onClick={() => { resetForm(); setShowAdd(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-xl text-sm font-medium text-white transition-colors">
             <Plus className="w-4 h-4" /> Ajouter
           </button>
@@ -173,7 +227,7 @@ export default function ProductsPage() {
         onChange={(key) => setTab(key as Tab)}
       />
 
-      {/* === PRODUITS === */}
+      {/* === REPAS === */}
       {tab === "products" && (
         <div className="space-y-4">
           {/* Filtre Repas / Extras / Tous */}
@@ -195,68 +249,6 @@ export default function ProductsPage() {
             </button>
           </div>
 
-          {/* Formulaire ajout */}
-          {showAdd && (
-            <Card>
-              <CardContent className="space-y-3">
-                <p className="text-sm font-semibold text-white">Nouveau produit</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="text" placeholder="Nom *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                  <input type="number" placeholder="Prix *" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                  <input type="text" placeholder="Boutique / Restaurant *" value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500">
-                    {Object.entries(categoryConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
-                </div>
-
-                {/* Nouveaux champs restaurant */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Temps cuisson (min)</label>
-                    <div className="relative">
-                      <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
-                      <input type="number" min="1" value={form.cookingTimeMin}
-                        onChange={(e) => setForm({ ...form, cookingTimeMin: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Paiement</label>
-                    <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500">
-                      <option value="BOTH">Les deux</option>
-                      <option value="CASH">Especes</option>
-                      <option value="ONLINE">En ligne</option>
-                    </select>
-                  </div>
-                  <div className="flex items-end pb-1">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={form.isExtra}
-                        onChange={(e) => setForm({ ...form, isExtra: e.target.checked })}
-                        className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-orange-500 focus:ring-orange-500" />
-                      <span className="text-sm text-gray-300 flex items-center gap-1">
-                        <Droplets className="w-3.5 h-3.5 text-orange-400" /> Extra
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                <input type="text" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                <input type="text" placeholder="URL image (optionnel)" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500" />
-                <button onClick={addProduct} disabled={saving || !form.name || !form.price || !form.shopName}
-                  className="w-full py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Ajouter le produit
-                </button>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Liste par boutique */}
           {shops.map((shop) => {
             const shopProducts = filteredProducts.filter((p) => p.shopName === shop);
@@ -265,7 +257,7 @@ export default function ProductsPage() {
                 <div className="flex items-center gap-2 mb-2">
                   <Store className="w-4 h-4 text-gray-500" />
                   <h3 className="text-sm font-semibold text-white">{shop}</h3>
-                  <span className="text-xs text-gray-600">{shopProducts.length} produit{shopProducts.length > 1 ? "s" : ""}</span>
+                  <span className="text-xs text-gray-600">{shopProducts.length} repas</span>
                 </div>
                 <div className="space-y-2">
                   {shopProducts.map((p) => {
@@ -360,7 +352,7 @@ export default function ProductsPage() {
             );
           })}
           {filteredProducts.length === 0 && (
-            <EmptyState icon={Package} message="Aucun produit" />
+            <EmptyState icon={UtensilsCrossed} message="Aucun repas" />
           )}
         </div>
       )}
@@ -555,6 +547,151 @@ export default function ProductsPage() {
           </div>
         </div>
       )}
+
+      {/* ============================================ */}
+      {/* Dialog Ajout de repas                        */}
+      {/* ============================================ */}
+      <Dialog open={showAdd} onClose={() => setShowAdd(false)} title="Nouveau repas">
+        <div className="space-y-4">
+          {/* Nom et Prix */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Nom *</label>
+              <input type="text" placeholder="Ex: Riz au poulet" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                className={inputClass + " w-full"} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Prix (FCFA) *</label>
+              <input type="number" placeholder="2500" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })}
+                className={inputClass + " w-full"} />
+            </div>
+          </div>
+
+          {/* Restaurant et Catégorie */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Restaurant *</label>
+              <input type="text" placeholder="Nom du restaurant" value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })}
+                className={inputClass + " w-full"} />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Catégorie</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className={inputClass + " w-full"}>
+                {Object.entries(categoryConfig).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="text-xs text-gray-400 mb-1 block">Description</label>
+            <input type="text" placeholder="Description du repas (optionnel)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className={inputClass + " w-full"} />
+          </div>
+
+          {/* Temps cuisson, Paiement, Extra */}
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Cuisson (min)</label>
+              <div className="relative">
+                <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                <input type="number" min="1" value={form.cookingTimeMin}
+                  onChange={(e) => setForm({ ...form, cookingTimeMin: e.target.value })}
+                  className={inputClass + " w-full pl-9"} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Paiement</label>
+              <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                className={inputClass + " w-full"}>
+                <option value="BOTH">Les deux</option>
+                <option value="CASH">Especes</option>
+                <option value="ONLINE">En ligne</option>
+              </select>
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.isExtra}
+                  onChange={(e) => setForm({ ...form, isExtra: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-orange-500 focus:ring-orange-500" />
+                <span className="text-sm text-gray-300 flex items-center gap-1">
+                  <Droplets className="w-3.5 h-3.5 text-orange-400" /> Extra
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Image — toggle Upload / Lien */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs text-gray-400">Image</label>
+              <div className="flex bg-gray-800 rounded-lg p-0.5">
+                <button type="button" onClick={() => { setImageMode("upload"); setImagePreview(null); setForm((p) => ({ ...p, image: "" })); }}
+                  className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1",
+                    imageMode === "upload" ? "bg-orange-600 text-white" : "text-gray-400 hover:text-gray-300")}>
+                  <Upload className="w-3 h-3" /> Importer
+                </button>
+                <button type="button" onClick={() => { setImageMode("link"); setImagePreview(null); setForm((p) => ({ ...p, image: "" })); }}
+                  className={cn("px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1",
+                    imageMode === "link" ? "bg-orange-600 text-white" : "text-gray-400 hover:text-gray-300")}>
+                  <Link2 className="w-3 h-3" /> Lien URL
+                </button>
+              </div>
+            </div>
+
+            {imageMode === "upload" ? (
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full py-6 border-2 border-dashed border-gray-700 hover:border-orange-500/50 rounded-xl text-gray-400 hover:text-gray-300 transition-colors flex flex-col items-center gap-2">
+                  {uploading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                  ) : (
+                    <ImageIcon className="w-6 h-6" />
+                  )}
+                  <span className="text-xs">{uploading ? "Import en cours..." : "Cliquez pour importer une image"}</span>
+                  <span className="text-[10px] text-gray-600">JPG, PNG, WebP, GIF (5MB max)</span>
+                </button>
+              </div>
+            ) : (
+              <input type="text" placeholder="https://exemple.com/image.jpg" value={form.image}
+                onChange={(e) => handleImageUrlChange(e.target.value)}
+                className={inputClass + " w-full"} />
+            )}
+
+            {/* Preview */}
+            {imagePreview && (
+              <div className="mt-3 relative inline-block">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-[150px] h-[100px] object-cover rounded-lg border border-gray-700"
+                  onError={() => setImagePreview(null)}
+                />
+                <button type="button" onClick={() => { setImagePreview(null); setForm((p) => ({ ...p, image: "" })); }}
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Bouton soumettre */}
+          <button onClick={addProduct} disabled={saving || !form.name || !form.price || !form.shopName}
+            className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Ajouter le repas
+          </button>
+        </div>
+      </Dialog>
     </div>
   );
 }
