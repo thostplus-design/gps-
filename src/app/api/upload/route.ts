@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { auth } from "@/lib/auth";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(request: NextRequest) {
+  // Vérifier l'authentification
+  const session = await auth();
+  if (!session?.user || !["ADMIN", "MANAGER"].includes((session.user as any).role)) {
+    return NextResponse.json({ error: "Non autorise" }, { status: 401 });
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -25,7 +32,9 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const ext = file.name.split(".").pop() || "jpg";
+    // Nettoyer l'extension pour éviter les injections
+    const rawExt = file.name.split(".").pop() || "jpg";
+    const ext = rawExt.replace(/[^a-zA-Z0-9]/g, "").slice(0, 5) || "jpg";
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     const uploadDir = path.join(process.cwd(), "public", "uploads");

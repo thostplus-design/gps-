@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Settings, User, Shield, Bell, Save, Loader2, Check, CreditCard, Store } from "lucide-react";
+import { User, Shield, Bell, Save, Loader2, Check, CreditCard, Store } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,13 +10,24 @@ import { PillTabGroup } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const role = (session?.user as any)?.role;
   const isAdmin = role === "ADMIN";
   const [activeTab, setActiveTab] = useState("profile");
-  const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Profil
+  const [profileName, setProfileName] = useState("");
+  useEffect(() => {
+    if (session?.user?.name) setProfileName(session.user.name);
+  }, [session?.user?.name]);
+
+  // Securite
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Site settings
   const [siteSettings, setSiteSettings] = useState<any>(null);
   const [restaurantName, setRestaurantName] = useState("");
   const [defaultPayment, setDefaultPayment] = useState("BOTH");
@@ -41,9 +52,62 @@ export default function SettingsPage() {
     }
   }, [isAdmin]);
 
-  function handleSave() {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  async function saveProfile() {
+    if (!profileName.trim() || profileName.trim().length < 2) {
+      toast.error("Le nom doit faire au moins 2 caracteres");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: profileName.trim() }),
+      });
+      if (res.ok) {
+        toast.success("Profil mis a jour");
+        await updateSession();
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error || "Erreur lors de la sauvegarde");
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function changePassword() {
+    if (!currentPassword) {
+      toast.error("Entrez votre mot de passe actuel");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Le nouveau mot de passe doit faire au moins 6 caracteres");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (res.ok) {
+        toast.success("Mot de passe modifie");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        const err = await res.json().catch(() => null);
+        toast.error(err?.error || "Erreur lors du changement");
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveSiteSettings() {
@@ -56,9 +120,7 @@ export default function SettingsPage() {
       if (res.ok) {
         const data = await res.json();
         setSiteSettings(data);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-        toast.success("Paramètres sauvegardés");
+        toast.success("Parametres sauvegardes");
       } else {
         toast.error("Erreur lors de la sauvegarde");
       }
@@ -72,7 +134,6 @@ export default function SettingsPage() {
     { key: "profile", label: "Profil", icon: User },
     ...(isAdmin ? [{ key: "restaurant", label: "Restaurant", icon: Store }] : []),
     ...(isAdmin ? [{ key: "payment", label: "Paiement", icon: CreditCard }] : []),
-    { key: "notifications", label: "Notifs", icon: Bell },
     { key: "security", label: "Securite", icon: Shield },
   ];
 
@@ -89,21 +150,21 @@ export default function SettingsPage() {
               <h2 className="text-[15px] font-semibold text-white mb-4">Informations du profil</h2>
               <div>
                 <label className="block text-[13px] text-gray-400 mb-1.5">Nom</label>
-                <input type="text" defaultValue={session?.user?.name || ""} className={inputClass} />
+                <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className={inputClass} />
               </div>
               <div>
                 <label className="block text-[13px] text-gray-400 mb-1.5">Email</label>
                 <input type="email" defaultValue={session?.user?.email || ""} disabled className={cn(inputClass, "opacity-50")} />
-                <p className="text-[11px] text-gray-600 mt-1">L email ne peut pas etre modifie</p>
+                <p className="text-[11px] text-gray-600 mt-1">L&apos;email ne peut pas etre modifie</p>
               </div>
               <div>
                 <label className="block text-[13px] text-gray-400 mb-1.5">Role</label>
                 <input type="text" value={role || "VIEWER"} disabled className={cn(inputClass, "opacity-50")} />
               </div>
-              <button onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-semibold transition-colors">
-                {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                {saved ? "Sauvegarde !" : "Sauvegarder"}
+              <button onClick={saveProfile} disabled={saving}
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-xl text-[13px] font-semibold transition-colors">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Sauvegarder
               </button>
             </div>
           )}
@@ -125,8 +186,8 @@ export default function SettingsPage() {
               </div>
               <button onClick={saveSiteSettings} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-xl text-[13px] font-semibold transition-colors">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                {saved ? "Sauvegarde !" : "Sauvegarder"}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Sauvegarder
               </button>
             </div>
           )}
@@ -167,55 +228,34 @@ export default function SettingsPage() {
               </div>
               <button onClick={saveSiteSettings} disabled={saving}
                 className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-xl text-[13px] font-semibold transition-colors">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                {saved ? "Sauvegarde !" : "Sauvegarder"}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Sauvegarder
               </button>
-            </div>
-          )}
-
-          {activeTab === "notifications" && (
-            <div className="space-y-3 max-w-lg">
-              <h2 className="text-[15px] font-semibold text-white mb-4">Notifications</h2>
-              {[
-                { label: "Alertes geofence", desc: "Entrees et sorties de zones" },
-                { label: "Batterie faible", desc: "Quand un appareil descend sous 20%" },
-                { label: "Exces de vitesse", desc: "Depassement des limites" },
-                { label: "Appareil hors ligne", desc: "Perte de signal" },
-                { label: "SOS", desc: "Alertes d urgence" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between p-3 bg-white/[0.03] rounded-xl">
-                  <div>
-                    <p className="text-[13px] text-white">{item.label}</p>
-                    <p className="text-[11px] text-gray-500">{item.desc}</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" defaultChecked className="sr-only peer" />
-                    <div className="w-10 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-orange-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
-                  </label>
-                </div>
-              ))}
             </div>
           )}
 
           {activeTab === "security" && (
             <div className="space-y-4 max-w-lg">
-              <h2 className="text-[15px] font-semibold text-white mb-4">Securite</h2>
+              <h2 className="text-[15px] font-semibold text-white mb-4">Changer le mot de passe</h2>
               <div>
                 <label className="block text-[13px] text-gray-400 mb-1.5">Mot de passe actuel</label>
-                <input type="password" className={inputClass} />
+                <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={inputClass} />
               </div>
               <div>
                 <label className="block text-[13px] text-gray-400 mb-1.5">Nouveau mot de passe</label>
-                <input type="password" className={inputClass} />
+                <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caracteres minimum" className={inputClass} />
               </div>
               <div>
                 <label className="block text-[13px] text-gray-400 mb-1.5">Confirmer</label>
-                <input type="password" className={inputClass} />
+                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} />
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p className="text-[11px] text-red-400 mt-1">Les mots de passe ne correspondent pas</p>
+                )}
               </div>
-              <button onClick={handleSave}
-                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-semibold transition-colors">
-                {saved ? <Check className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-                {saved ? "Sauvegarde !" : "Changer le mot de passe"}
+              <button onClick={changePassword} disabled={saving || !currentPassword || !newPassword || newPassword !== confirmPassword}
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white rounded-xl text-[13px] font-semibold transition-colors">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                Changer le mot de passe
               </button>
             </div>
           )}

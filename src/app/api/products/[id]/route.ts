@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
+const ALLOWED_FIELDS = [
+  "name", "description", "price", "category", "shopName",
+  "image", "isAvailable", "cookingTimeMin", "isExtra", "paymentMethod",
+];
+
+const VALID_CATEGORIES = ["RESTAURANT", "GROCERY", "PHARMACY", "ELECTRONICS", "OTHER"];
+const VALID_PAYMENT_METHODS = ["CASH", "ONLINE", "BOTH"];
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,8 +20,41 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const product = await prisma.product.update({ where: { id }, data: body });
-  return NextResponse.json(product);
+
+  // Filtrer uniquement les champs autorisés
+  const data: any = {};
+  for (const key of ALLOWED_FIELDS) {
+    if (body[key] !== undefined) {
+      data[key] = body[key];
+    }
+  }
+
+  // Valider les types
+  if (data.price !== undefined) {
+    data.price = typeof data.price === "number" ? data.price : parseFloat(data.price) || 0;
+  }
+  if (data.cookingTimeMin !== undefined) {
+    data.cookingTimeMin = typeof data.cookingTimeMin === "number" ? data.cookingTimeMin : parseInt(data.cookingTimeMin) || 15;
+  }
+  if (data.isExtra !== undefined) {
+    data.isExtra = data.isExtra === true;
+  }
+  if (data.isAvailable !== undefined) {
+    data.isAvailable = data.isAvailable !== false;
+  }
+  if (data.category && !VALID_CATEGORIES.includes(data.category)) {
+    return NextResponse.json({ error: "Categorie invalide" }, { status: 400 });
+  }
+  if (data.paymentMethod && !VALID_PAYMENT_METHODS.includes(data.paymentMethod)) {
+    return NextResponse.json({ error: "Methode de paiement invalide" }, { status: 400 });
+  }
+
+  try {
+    const product = await prisma.product.update({ where: { id }, data });
+    return NextResponse.json(product);
+  } catch {
+    return NextResponse.json({ error: "Produit introuvable" }, { status: 404 });
+  }
 }
 
 export async function DELETE(
@@ -27,9 +68,7 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    // Supprimer les OrderItems liés d'abord
     await prisma.orderItem.deleteMany({ where: { productId: id } });
-    // Puis supprimer le produit
     await prisma.product.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {

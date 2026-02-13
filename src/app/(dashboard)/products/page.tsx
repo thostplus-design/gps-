@@ -3,13 +3,14 @@
 import { useEffect, useState, useRef } from "react";
 import {
   Loader2, Package, Plus, Trash2, ShoppingBag, TrendingUp,
-  Clock, CheckCircle, Truck, XCircle, Store,
+  Clock, CheckCircle, Truck, XCircle, Store, Search,
   UtensilsCrossed, ShoppingCart, Pill, Smartphone,
   Timer, Droplets, CreditCard, Edit2, X, Save,
   ImageIcon, Link2, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { orderStatusLabels, paymentMethodLabels } from "@/lib/order-status";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCardCentered, StatCardBadge } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,6 +22,7 @@ type Tab = "products" | "orders" | "revenue";
 type ProductFilter = "all" | "meals" | "extras";
 type ImageMode = "link" | "upload";
 type DialogMode = "add" | "edit";
+type OrderFilter = "all" | "PENDING" | "PREPARING" | "READY" | "DELIVERING" | "DELIVERED" | "CANCELLED";
 
 const categoryConfig: Record<string, { label: string; icon: any }> = {
   RESTAURANT: { label: "Restaurant", icon: UtensilsCrossed },
@@ -30,24 +32,9 @@ const categoryConfig: Record<string, { label: string; icon: any }> = {
   OTHER: { label: "Autre", icon: Package },
 };
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "En attente", color: "bg-yellow-500/20 text-yellow-400" },
-  ACCEPTED: { label: "Acceptee", color: "bg-orange-500/20 text-orange-400" },
-  PREPARING: { label: "En cuisine", color: "bg-orange-500/20 text-orange-400" },
-  READY: { label: "Pret", color: "bg-cyan-500/20 text-cyan-400" },
-  PICKED_UP: { label: "Recuperee", color: "bg-indigo-500/20 text-indigo-400" },
-  DELIVERING: { label: "En livraison", color: "bg-purple-500/20 text-purple-400" },
-  DELIVERED: { label: "Livree", color: "bg-green-500/20 text-green-400" },
-  CANCELLED: { label: "Annulee", color: "bg-red-500/20 text-red-400" },
-};
-
-const paymentMethodLabels: Record<string, string> = {
-  CASH: "Especes",
-  ONLINE: "En ligne",
-  BOTH: "Les deux",
-};
-
 const inputClass = "px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500";
+
+const ORDERS_PER_PAGE = 20;
 
 export default function ProductsPage() {
   const [tab, setTab] = useState<Tab>("products");
@@ -57,13 +44,19 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [productFilter, setProductFilter] = useState<ProductFilter>("all");
 
-  // Dialog ajout/édition
+  // Commandes: filtre + recherche + pagination
+  const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderPage, setOrderPage] = useState(1);
+
+  // Dialog ajout/edition
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode>("add");
   const [editProductId, setEditProductId] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "", description: "", price: "", image: "",
     cookingTimeMin: "15", isExtra: false, paymentMethod: "BOTH",
+    category: "RESTAURANT",
   });
   const [saving, setSaving] = useState(false);
   const [imageMode, setImageMode] = useState<ImageMode>("upload");
@@ -72,6 +65,10 @@ export default function ProductsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    loadData();
+  }, []);
+
+  function loadData() {
     Promise.all([
       fetch("/api/products").then((r) => r.json()),
       fetch("/api/orders").then((r) => r.json()),
@@ -82,10 +79,16 @@ export default function ProductsPage() {
       setRevenue(r);
       setLoading(false);
     });
-  }, []);
+  }
+
+  function refreshProducts() {
+    fetch("/api/products").then((r) => r.json()).then((p) => {
+      setProducts(Array.isArray(p) ? p : []);
+    });
+  }
 
   function resetForm() {
-    setForm({ name: "", description: "", price: "", image: "", cookingTimeMin: "15", isExtra: false, paymentMethod: "BOTH" });
+    setForm({ name: "", description: "", price: "", image: "", cookingTimeMin: "15", isExtra: false, paymentMethod: "BOTH", category: "RESTAURANT" });
     setImagePreview(null);
     setImageMode("upload");
     setEditProductId(null);
@@ -108,6 +111,7 @@ export default function ProductsPage() {
       cookingTimeMin: String(product.cookingTimeMin || 15),
       isExtra: product.isExtra || false,
       paymentMethod: product.paymentMethod || "BOTH",
+      category: product.category || "RESTAURANT",
     });
     if (product.image) {
       setImagePreview(product.image);
@@ -129,13 +133,13 @@ export default function ProductsPage() {
         const { url } = await res.json();
         setForm((prev) => ({ ...prev, image: url }));
         setImagePreview(url);
-        toast.success("Image importée");
+        toast.success("Image importee");
       } else {
         const err = await res.json().catch(() => null);
         toast.error(err?.error || "Erreur lors de l'import");
       }
     } catch {
-      toast.error("Erreur réseau");
+      toast.error("Erreur reseau");
     }
     setUploading(false);
   }
@@ -171,17 +175,16 @@ export default function ProductsPage() {
         cookingTimeMin: parseInt(form.cookingTimeMin) || 15,
         isExtra: form.isExtra,
         paymentMethod: form.paymentMethod,
-        category: "RESTAURANT",
+        category: form.category,
         shopName: "Restaurant",
         isAvailable: true,
       }),
     });
     if (res.ok) {
-      const p = await res.json();
-      setProducts((prev) => [p, ...prev]);
       resetForm();
       setShowDialog(false);
-      toast.success("Repas ajouté");
+      toast.success("Repas ajoute");
+      refreshProducts();
     } else {
       toast.error("Erreur lors de l'ajout");
     }
@@ -202,14 +205,14 @@ export default function ProductsPage() {
         cookingTimeMin: parseInt(form.cookingTimeMin) || 15,
         isExtra: form.isExtra,
         paymentMethod: form.paymentMethod,
+        category: form.category,
       }),
     });
     if (res.ok) {
-      const updated = await res.json();
-      setProducts((prev) => prev.map((p) => p.id === editProductId ? updated : p));
       resetForm();
       setShowDialog(false);
-      toast.success("Repas modifié");
+      toast.success("Repas modifie");
+      refreshProducts();
     } else {
       toast.error("Erreur lors de la modification");
     }
@@ -228,7 +231,7 @@ export default function ProductsPage() {
     const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
     if (res.ok) {
       setProducts((prev) => prev.filter((p) => p.id !== id));
-      toast.success("Repas supprimé");
+      toast.success("Repas supprime");
     } else {
       toast.error("Erreur lors de la suppression");
     }
@@ -236,7 +239,7 @@ export default function ProductsPage() {
 
   function confirmDeleteProduct(id: string, name: string) {
     toast.warning(`Supprimer "${name}" ?`, {
-      description: "Cette action est irréversible",
+      description: "Cette action est irreversible",
       action: { label: "Supprimer", onClick: () => deleteProduct(id) },
       cancel: { label: "Annuler", onClick: () => {} },
     });
@@ -260,9 +263,26 @@ export default function ProductsPage() {
   const mealsCount = products.filter((p) => !p.isExtra).length;
   const extrasCount = products.filter((p) => p.isExtra).length;
 
+  // Filtrer commandes
+  const filteredOrders = orders.filter((o) => {
+    if (orderFilter !== "all" && o.status !== orderFilter) return false;
+    if (orderSearch) {
+      const q = orderSearch.toLowerCase();
+      const clientName = (o.client?.name || o.guestName || "").toLowerCase();
+      const orderId = o.id.toLowerCase();
+      if (!clientName.includes(q) && !orderId.includes(q)) return false;
+    }
+    return true;
+  });
+  const totalOrderPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
+  const paginatedOrders = filteredOrders.slice((orderPage - 1) * ORDERS_PER_PAGE, orderPage * ORDERS_PER_PAGE);
+
+  // Reset page quand filtre change
+  useEffect(() => { setOrderPage(1); }, [orderFilter, orderSearch]);
+
   return (
     <div className="space-y-4">
-      <PageHeader title="Repas" subtitle="Gérez vos repas, commandes et recettes">
+      <PageHeader title="Repas" subtitle="Gerez vos repas, commandes et recettes">
         {tab === "products" && (
           <button onClick={openAddDialog}
             className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-xl text-sm font-medium text-white transition-colors">
@@ -367,11 +387,37 @@ export default function ProductsPage() {
       {/* === COMMANDES === */}
       {tab === "orders" && (
         <div className="space-y-3">
-          {orders.length === 0 ? (
-            <EmptyState icon={ShoppingBag} message="Aucune commande" />
+          {/* Recherche + filtres */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+              <input
+                type="text"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                placeholder="Rechercher par client ou ID..."
+                className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+              />
+            </div>
+            <select
+              value={orderFilter}
+              onChange={(e) => setOrderFilter(e.target.value as OrderFilter)}
+              className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-orange-500"
+            >
+              <option value="all">Tous les statuts ({orders.length})</option>
+              {Object.entries(orderStatusLabels).map(([key, val]) => {
+                const count = orders.filter((o) => o.status === key).length;
+                return count > 0 ? <option key={key} value={key}>{val.label} ({count})</option> : null;
+              })}
+            </select>
+          </div>
+
+          {/* Liste */}
+          {paginatedOrders.length === 0 ? (
+            <EmptyState icon={ShoppingBag} message="Aucune commande trouvee" />
           ) : (
-            orders.slice(0, 50).map((order: any) => {
-              const st = statusLabels[order.status] || statusLabels.PENDING;
+            paginatedOrders.map((order: any) => {
+              const st = orderStatusLabels[order.status] || orderStatusLabels.PENDING;
               return (
                 <Card key={order.id}>
                   <CardContent>
@@ -421,6 +467,29 @@ export default function ProductsPage() {
                 </Card>
               );
             })
+          )}
+
+          {/* Pagination */}
+          {totalOrderPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => setOrderPage((p) => Math.max(1, p - 1))}
+                disabled={orderPage === 1}
+                className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs disabled:opacity-30 hover:bg-gray-700 transition-colors"
+              >
+                Precedent
+              </button>
+              <span className="text-xs text-gray-500">
+                Page {orderPage} / {totalOrderPages} ({filteredOrders.length} resultats)
+              </span>
+              <button
+                onClick={() => setOrderPage((p) => Math.min(totalOrderPages, p + 1))}
+                disabled={orderPage === totalOrderPages}
+                className="px-3 py-1.5 bg-gray-800 text-gray-400 rounded-lg text-xs disabled:opacity-30 hover:bg-gray-700 transition-colors"
+              >
+                Suivant
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -477,24 +546,9 @@ export default function ProductsPage() {
               <CardContent>
                 <h3 className="text-sm font-semibold text-white mb-3">Activite cuisine aujourd&apos;hui</h3>
                 <div className="grid grid-cols-3 gap-3">
-                  <StatCardBadge
-                    icon={UtensilsCrossed}
-                    value={revenue.cookStats.prepared || 0}
-                    label="Preparees"
-                    color="orange"
-                  />
-                  <StatCardBadge
-                    icon={Clock}
-                    value={revenue.cookStats.preparing || 0}
-                    label="En cuisine"
-                    color="yellow"
-                  />
-                  <StatCardBadge
-                    icon={CheckCircle}
-                    value={revenue.cookStats.ready || 0}
-                    label="Pretes"
-                    color="green"
-                  />
+                  <StatCardBadge icon={UtensilsCrossed} value={revenue.cookStats.prepared || 0} label="Preparees" color="orange" />
+                  <StatCardBadge icon={Clock} value={revenue.cookStats.preparing || 0} label="En cuisine" color="yellow" />
+                  <StatCardBadge icon={CheckCircle} value={revenue.cookStats.ready || 0} label="Pretes" color="green" />
                 </div>
               </CardContent>
             </Card>
@@ -527,36 +581,16 @@ export default function ProductsPage() {
 
           {/* Stats globales */}
           <div className="grid grid-cols-2 gap-3">
-            <StatCardBadge
-              icon={Clock}
-              value={revenue.totals.pending}
-              label="En attente"
-              color="yellow"
-            />
-            <StatCardBadge
-              icon={Truck}
-              value={revenue.totals.activeDeliveries}
-              label="Livraisons en cours"
-              color="purple"
-            />
-            <StatCardBadge
-              icon={CheckCircle}
-              value={revenue.totals.deliveredToday}
-              label="Livrees aujourd&apos;hui"
-              color="green"
-            />
-            <StatCardBadge
-              icon={ShoppingBag}
-              value={revenue.totals.orders}
-              label="Total commandes"
-              color="orange"
-            />
+            <StatCardBadge icon={Clock} value={revenue.totals.pending} label="En attente" color="yellow" />
+            <StatCardBadge icon={Truck} value={revenue.totals.activeDeliveries} label="Livraisons en cours" color="purple" />
+            <StatCardBadge icon={CheckCircle} value={revenue.totals.deliveredToday} label="Livrees aujourd&apos;hui" color="green" />
+            <StatCardBadge icon={ShoppingBag} value={revenue.totals.orders} label="Total commandes" color="orange" />
           </div>
         </div>
       )}
 
       {/* ============================================ */}
-      {/* Dialog Ajout / Édition de repas              */}
+      {/* Dialog Ajout / Edition de repas              */}
       {/* ============================================ */}
       <Dialog open={showDialog} onClose={() => { setShowDialog(false); resetForm(); }} title={dialogMode === "edit" ? "Modifier le repas" : "Nouveau repas"}>
         <div className="space-y-4">
@@ -581,8 +615,17 @@ export default function ProductsPage() {
               className={inputClass + " w-full"} />
           </div>
 
-          {/* Temps cuisson, Paiement, Extra */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Categorie, Temps cuisson, Paiement, Extra */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="text-xs text-gray-400 mb-1 block">Categorie</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className={inputClass + " w-full"}>
+                {Object.entries(categoryConfig).map(([key, cfg]) => (
+                  <option key={key} value={key}>{cfg.label}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Cuisson (min)</label>
               <div className="relative">
